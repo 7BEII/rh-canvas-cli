@@ -1,0 +1,373 @@
+import type { CanvasCard, PresetTemplate } from '@/types/canvas';
+
+function id(prefix: string, n: number) {
+  return `${prefix}-${n}-${Math.random().toString(36).slice(2, 6)}`;
+}
+
+const FULL_RHTV_PROMPT = `@音频1 生成一段古风奇幻风格的角色展示视频。核心主体是身着白衣、手持油纸伞的女孩，主要事件是她从湖畔平台出发，经历水面腾跃、河谷飞行、空中旋转等动作，最终回到平台并凝视镜头。故事发生在山水湖泊、河谷森林与瀑布环绕的自然仙境环境中。
+
+@视频1 用于整体动作轨迹、运镜速度和镜头切换节奏，不采用其人物外观和场景；@图片9 「人物三视图」输出的五宫格人物参考图用于女孩的面部五官、发型发色、服装款式与配色、以及手中的油纸伞样式，只采用这些视觉特征，不采用图中背景，全片该人物形象唯一，发色/服装颜色/伞样式严格锁定不可修改；@图片1 用于起始场景的木质栏边与湖面构图；@图片2 用于第二段的水面与水环构图；@图片3 用于第三段河谷森林的大远景构图；@图片4 用于第四段绿树间的横移构图；@图片5 用于第五段湖心苔藓石的落脚点构图；@图片6 用于第六段多层瀑布背景的构图；@图片7 用于第七段瀑布虚化背景的构图；@图片8 用于第八段湖畔平台的构图。
+
+以 @图片1 至 @图片8 的顺序作为关键帧，@图片1 作为首帧定义起始状态，@图片2 至 @图片7 依次定义中间各阶段状态，@图片8 作为尾帧定义结束状态。`;
+
+export const PRESET_TEMPLATES: PresetTemplate[] = [
+  {
+    id: 'omni-reference-video',
+    name: 'LibTV 复刻 · 全能参考精简版',
+    description:
+      '已内置全部 13 份原画布真实本地素材（人物三视图、人脸/造型参考、8 张实景图、深度动作参考 MP4、古风背景音乐 MP3），支持直接调用火山方舟官方 Seedance API 一键出片。',
+    badge: 'Seedance 全能参考',
+    accent: '#ccff00',
+    steps: ['13 份内置真实素材', '全能参考 @编排', '火山方舟 Seedance', '成片直出'],
+    build: () => {
+      const char3 = id('n', 1);
+      const face = id('n', 2);
+      const outfit = id('n', 3);
+      const motion = id('n', 4);
+      const bgm = id('n', 5);
+      const s1 = id('n', 6);
+      const s2 = id('n', 7);
+      const s3 = id('n', 8);
+      const s4 = id('n', 9);
+      const s5 = id('n', 10);
+      const s6 = id('n', 11);
+      const s7 = id('n', 12);
+      const s8 = id('n', 13);
+      const omniVid = id('n', 14);
+
+      const cards: CanvasCard[] = [
+        // Row 0: 人物三视图 + 人脸参考 + 造型参考 + 深度动作参考 + 背景音乐
+        {
+          id: char3,
+          type: 'source',
+          mediaKind: 'image',
+          name: '人物三视图',
+          x: 60,
+          y: 20,
+          width: 156,
+          height: 92,
+          refs: [],
+          results: [{ kind: 'image', label: '人物三视图', name: 'rhtv-character-3view.png', url: '/api/assets/input/rhtv-character-3view.png' }],
+          activeResultIndex: 0,
+          status: 'done',
+        },
+        {
+          id: face,
+          type: 'source',
+          mediaKind: 'image',
+          name: '人脸参考',
+          x: 60,
+          y: 142,
+          width: 148,
+          height: 148,
+          refs: [],
+          results: [{ kind: 'image', label: '人脸参考', name: 'rhtv-face-ref.png', url: '/api/assets/input/rhtv-face-ref.png' }],
+          activeResultIndex: 0,
+          status: 'done',
+        },
+        {
+          id: outfit,
+          type: 'source',
+          mediaKind: 'image',
+          name: '造型参考',
+          x: 224,
+          y: 142,
+          width: 148,
+          height: 148,
+          refs: [],
+          results: [{ kind: 'image', label: '造型参考', name: 'rhtv-outfit-ref.jpg', url: '/api/assets/input/rhtv-outfit-ref.jpg' }],
+          activeResultIndex: 0,
+          status: 'done',
+        },
+        {
+          id: motion,
+          type: 'source',
+          mediaKind: 'video',
+          name: '深度动作参考',
+          x: 388,
+          y: 142,
+          width: 148,
+          height: 148,
+          refs: [],
+          results: [{ kind: 'video', label: '深度动作参考', name: 'rhtv-depth-motion.mp4', url: '/api/assets/input/rhtv-depth-motion.mp4' }],
+          activeResultIndex: 0,
+          status: 'done',
+        },
+        {
+          id: bgm,
+          type: 'source',
+          mediaKind: 'audio',
+          name: '背景音乐',
+          x: 552,
+          y: 142,
+          width: 156,
+          height: 100,
+          refs: [],
+          results: [{ kind: 'audio', label: '背景音乐 · 00:15', name: 'rhtv-bgm.mp3', url: '/api/assets/input/rhtv-bgm.mp3' }],
+          activeResultIndex: 0,
+          status: 'done',
+        },
+        // Row 1: 场景1 ~ 场景4
+        {
+          id: s1,
+          type: 'source',
+          mediaKind: 'image',
+          name: '场景1',
+          x: 60,
+          y: 326,
+          width: 148,
+          height: 198,
+          refs: [],
+          results: [{ kind: 'image', label: '场景1', name: 'rhtv-scene-1.png', url: '/api/assets/input/rhtv-scene-1.png' }],
+          activeResultIndex: 0,
+          status: 'done',
+        },
+        {
+          id: s2,
+          type: 'source',
+          mediaKind: 'image',
+          name: '场景2',
+          x: 224,
+          y: 326,
+          width: 148,
+          height: 198,
+          refs: [],
+          results: [{ kind: 'image', label: '场景2', name: 'rhtv-scene-2.png', url: '/api/assets/input/rhtv-scene-2.png' }],
+          activeResultIndex: 0,
+          status: 'done',
+        },
+        {
+          id: s3,
+          type: 'source',
+          mediaKind: 'image',
+          name: '场景3',
+          x: 388,
+          y: 326,
+          width: 148,
+          height: 198,
+          refs: [],
+          results: [{ kind: 'image', label: '场景3', name: 'rhtv-scene-3.png', url: '/api/assets/input/rhtv-scene-3.png' }],
+          activeResultIndex: 0,
+          status: 'done',
+        },
+        {
+          id: s4,
+          type: 'source',
+          mediaKind: 'image',
+          name: '场景4',
+          x: 552,
+          y: 326,
+          width: 148,
+          height: 198,
+          refs: [],
+          results: [{ kind: 'image', label: '场景4', name: 'rhtv-scene-4.png', url: '/api/assets/input/rhtv-scene-4.png' }],
+          activeResultIndex: 0,
+          status: 'done',
+        },
+        // Row 2: 场景5 ~ 场景8
+        {
+          id: s5,
+          type: 'source',
+          mediaKind: 'image',
+          name: '场景5',
+          x: 60,
+          y: 556,
+          width: 148,
+          height: 198,
+          refs: [],
+          results: [{ kind: 'image', label: '场景5', name: 'rhtv-scene-5.png', url: '/api/assets/input/rhtv-scene-5.png' }],
+          activeResultIndex: 0,
+          status: 'done',
+        },
+        {
+          id: s6,
+          type: 'source',
+          mediaKind: 'image',
+          name: '场景6',
+          x: 224,
+          y: 556,
+          width: 148,
+          height: 198,
+          refs: [],
+          results: [{ kind: 'image', label: '场景6', name: 'rhtv-scene-6.png', url: '/api/assets/input/rhtv-scene-6.png' }],
+          activeResultIndex: 0,
+          status: 'done',
+        },
+        {
+          id: s7,
+          type: 'source',
+          mediaKind: 'image',
+          name: '场景7',
+          x: 388,
+          y: 556,
+          width: 148,
+          height: 198,
+          refs: [],
+          results: [{ kind: 'image', label: '场景7', name: 'rhtv-scene-7.png', url: '/api/assets/input/rhtv-scene-7.png' }],
+          activeResultIndex: 0,
+          status: 'done',
+        },
+        {
+          id: s8,
+          type: 'source',
+          mediaKind: 'image',
+          name: '场景8',
+          x: 552,
+          y: 556,
+          width: 148,
+          height: 198,
+          refs: [],
+          results: [{ kind: 'image', label: '场景8', name: 'rhtv-scene-8.png', url: '/api/assets/input/rhtv-scene-8.png' }],
+          activeResultIndex: 0,
+          status: 'done',
+        },
+        // Seedance Video Generation Node
+        {
+          id: omniVid,
+          type: 'video',
+          name: 'Seedance 2.0 Mini',
+          x: 860,
+          y: 260,
+          width: 210,
+          height: 290,
+          selected: true,
+          videoMode: 'omni',
+          model: 'seedance-2.0-mini',
+          resolution: '720p',
+          duration: 15,
+          aspect: '9:16',
+          generateAudio: true,
+          quality: 'standard',
+          stylePreset: '古风奇幻',
+          batchCount: 1,
+          localMedia: [],
+          prompt: FULL_RHTV_PROMPT,
+          refs: [
+            { kind: 'image', from: s1, label: '场景1' },
+            { kind: 'image', from: s2, label: '场景2' },
+            { kind: 'image', from: s3, label: '场景3' },
+            { kind: 'image', from: s4, label: '场景4' },
+            { kind: 'image', from: s5, label: '场景5' },
+            { kind: 'image', from: s6, label: '场景6' },
+            { kind: 'image', from: s7, label: '场景7' },
+            { kind: 'image', from: s8, label: '场景8' },
+            { kind: 'image', from: char3, label: '人物三视图' },
+            { kind: 'video', from: motion, label: '深度动作参考' },
+            { kind: 'audio', from: bgm, label: '背景音乐' },
+          ],
+          results: [],
+        },
+      ];
+      return { cards, viewport: { x: 110, y: 78, z: 0.66 } };
+    },
+  },
+  {
+    id: 'first-last-video',
+    name: '首尾帧视频转场',
+    description: '连接两张真实实景图到 Seedance 视频节点，使用「首尾帧」模式快速生成平滑运镜转场视频。',
+    badge: '首尾帧',
+    accent: '#62b5ff',
+    steps: ['首帧图片', '尾帧图片', '首尾帧生成'],
+    build: () => {
+      const f1 = id('n', 1);
+      const f2 = id('n', 2);
+      const vid = id('n', 3);
+      return {
+        cards: [
+          {
+            id: f1,
+            type: 'source',
+            mediaKind: 'image',
+            name: '首帧 · 湖畔木栏',
+            x: 120,
+            y: 90,
+            width: 170,
+            height: 210,
+            refs: [],
+            results: [{ kind: 'image', label: '场景1', url: '/api/assets/input/rhtv-scene-1.png' }],
+            activeResultIndex: 0,
+            status: 'done',
+          },
+          {
+            id: f2,
+            type: 'source',
+            mediaKind: 'image',
+            name: '尾帧 · 多层瀑布',
+            x: 120,
+            y: 340,
+            width: 170,
+            height: 210,
+            refs: [],
+            results: [{ kind: 'image', label: '场景6', url: '/api/assets/input/rhtv-scene-6.png' }],
+            activeResultIndex: 0,
+            status: 'done',
+          },
+          {
+            id: vid,
+            type: 'video',
+            name: 'Seedance 首尾帧',
+            x: 470,
+            y: 160,
+            width: 220,
+            height: 290,
+            selected: true,
+            videoMode: 'firstLastFrame',
+            model: 'seedance-2.0-mini',
+            resolution: '720p',
+            duration: 5,
+            aspect: '9:16',
+            generateAudio: false,
+            quality: 'standard',
+            batchCount: 1,
+            localMedia: [],
+            prompt: '从 @图片1 平滑推镜并自然过渡到 @图片2，保持山水光影与运镜连贯稳定。',
+            refs: [
+              { kind: 'image', from: f1, label: '首帧' },
+              { kind: 'image', from: f2, label: '尾帧' },
+            ],
+            results: [],
+          },
+        ],
+        viewport: { x: 140, y: 76, z: 0.84 },
+      };
+    },
+  },
+  {
+    id: 'text-to-video-simple',
+    name: '文生视频 · 极简画布',
+    description: '单节点极简创作，直接输入提示词、调节分辨率与时长即可生成视频。',
+    badge: '文生视频',
+    accent: '#bd8cff',
+    steps: ['输入提示词', '调节参数', '一键生成'],
+    build: () => {
+      const vid = id('n', 1);
+      return {
+        cards: [
+          {
+            id: vid,
+            type: 'video',
+            name: 'Seedance 2.0 Mini',
+            x: 420,
+            y: 96,
+            width: 240,
+            height: 220,
+            selected: true,
+            videoMode: 't2v',
+            model: 'seedance-2.0-mini',
+            resolution: '720p',
+            duration: 10,
+            aspect: '16:9',
+            generateAudio: true,
+            quality: 'standard',
+            batchCount: 1,
+            localMedia: [],
+            prompt: '电影级航拍镜头缓缓掠过云雾缭绕的翠绿山谷，阳光穿透云层洒在湖面上，波光粼粼。',
+            refs: [],
+            results: [],
+          },
+        ],
+        viewport: { x: 120, y: 76, z: 0.92 },
+      };
+    },
+  },
+];

@@ -1,0 +1,27 @@
+# Dependencies & build artifacts
+node_modules/
+dist/
+*.tsbuildinfo
+
+# Python cache & virtualenvs
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# Secrets & local user data (NEVER commit API keys or local outputs)
+.env
+.env.*
+data/settings.json
+data/projects/
+data/outputs/
+
+# Ignore ad-hoc uploaded assets, keep bundled preset template assets (rhtv-*)
+data/assets/*
+!data/assets/rhtv-*
+
+# OS & editor files
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
