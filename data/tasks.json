@@ -70,5 +70,41 @@
     "created_at": "2026-11-24T13:41:21.954084+00:00",
     "finished_at": "2026-11-24T13:41:21.954084+00:00",
     "duration_ms": 156045
+  },
+  {
+    "id": "task-35d11a2334",
+    "node_id": "n-14-zptf",
+    "node_name": "Seedance 2.0 Mini",
+    "node_type": "video",
+    "status": "error",
+    "message": "Tensor 生成失败：code: -1, message:rpc error: code = InvalidArgument desc = Input material 1 no longer exists. Check whether any input material has been removed, then add it again and retry., ErrMessage:",
+    "provider": "local",
+    "created_at": "2026-11-24T14:39:43.003877+00:00",
+    "finished_at": "2026-11-24T14:39:43.003877+00:00",
+    "duration_ms": 176176
+  },
+  {
+    "id": "task-f9f3a4a7dd",
+    "node_id": "n-14-zptf",
+    "node_name": "Seedance 2.0 Mini",
+    "node_type": "video",
+    "status": "error",
+    "message": "Tensor 生成失败：code: -1, message:rpc error: code = InvalidArgument desc = Input 10 must be 2–15 seconds long. Trim or replace it., ErrMessage:",
+    "provider": "local",
+    "created_at": "2026-11-24T14:45:49.605582+00:00",
+    "finished_at": "2026-11-24T14:45:49.605582+00:00",
+    "duration_ms": 211987
+  },
+  {
+    "id": "task-db0c0a5583",
+    "node_id": "n-14-zptf",
+    "node_name": "Seedance 2.0 Mini",
+    "node_type": "video",
+    "status": "error",
+    "message": "Tensor 未返回生成产物（Agent 回复：我先看一下视频复刻的相关规范，然后核对参考视频的动作节奏，再提交生成。我先核对参考视频里的动作和镜头节奏。参考视频已看过：14.8 秒、竖幅（接近 9:16）、无音轨，剪成 8 个镜头——平台侧面静立、跃下悬崖、峡谷俯瞰滑翔、空中旋转、云层上整身旋转、飞入峡谷深处、伞柄手部特写加甩镜、落回平台后推镜到正面凝视。我按这个节奏对齐你给的 8 张场景图。参考视频的 8 个镜头节点已经对齐到你给的 8 张场景图，人物特征锁定在五宫格那张图上。现在提交生成。提交被拒了，说素材没有稳定的画布身份。我先读一下画布，把这份素材换成画布上的稳定引用。画布里的稳定引用已经拿）",
+    "provider": "local",
+    "created_at": "2026-11-24T15:00:21.460646+00:00",
+    "finished_at": "2026-11-24T15:00:21.460646+00:00",
+    "duration_ms": 810096
   }
 ]

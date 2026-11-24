@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref } from 'vue';
+import { computed, onBeforeUnmount, ref, watch } from 'vue';
 import {
   LayoutGrid,
   List,
@@ -7,7 +7,8 @@ import {
   Download,
   Settings,
   Clock,
-  Play,
+  Square,
+  Loader2,
   Sparkles,
   ChevronLeft,
 } from 'lucide-vue-next';
@@ -30,6 +31,42 @@ const projects = useProjectsStore();
 
 const editingName = ref(false);
 const draftName = ref('');
+const elapsedSec = ref(0);
+let timer: ReturnType<typeof setInterval> | null = null;
+
+const runningCard = computed(() => canvas.cards.find((c) => c.status === 'running') || null);
+const isAnyRunning = computed(() => canvas.running || Boolean(runningCard.value));
+
+watch(
+  isAnyRunning,
+  (active) => {
+    if (active) {
+      elapsedSec.value = 0;
+      if (timer) clearInterval(timer);
+      timer = setInterval(() => {
+        elapsedSec.value += 1;
+      }, 1000);
+    } else if (timer) {
+      clearInterval(timer);
+      timer = null;
+    }
+  },
+  { immediate: true },
+);
+
+onBeforeUnmount(() => {
+  if (timer) {
+    clearInterval(timer);
+    timer = null;
+  }
+});
+
+async function handleStopRunning() {
+  const target = runningCard.value;
+  if (target) {
+    await canvas.cancelNode(target.id);
+  }
+}
 
 function startEditName() {
   draftName.value = projects.activeProjectName;
@@ -143,14 +180,31 @@ async function handleExportZip() {
       </button>
 
       <button
+        v-if="isAnyRunning"
+        class="stop-pill"
+        type="button"
+        title="立即中止当前生成任务"
+        @click="handleStopRunning"
+      >
+        <Square :size="11" fill="currentColor" />
+        <span>停止</span>
+      </button>
+
+      <button
         class="run-pill"
         type="button"
-        :disabled="canvas.running"
+        :disabled="isAnyRunning"
         @click="canvas.runNodesInOrder()"
       >
-        <Sparkles v-if="!canvas.running" :size="13" class="spark" />
-        <Play v-else :size="13" />
-        <span>{{ canvas.running ? '生成中…' : '运行画布' }}</span>
+        <Loader2 v-if="isAnyRunning" :size="13" class="spin" />
+        <Sparkles v-else :size="13" class="spark" />
+        <span>
+          {{
+            isAnyRunning
+              ? `生成中 · ${runningCard?.name || '画布'} ${elapsedSec}s`
+              : '运行画布'
+          }}
+        </span>
       </button>
     </div>
   </header>
@@ -314,6 +368,37 @@ async function handleExportZip() {
 
 .run-pill .spark {
   color: var(--accent);
+}
+
+.stop-pill {
+  height: 34px;
+  padding: 0 12px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 107, 107, 0.45);
+  background: rgba(255, 107, 107, 0.14);
+  color: #ffb4b4;
+  font-size: 12.5px;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  cursor: pointer;
+  backdrop-filter: blur(12px);
+}
+
+.stop-pill:hover {
+  background: rgba(255, 107, 107, 0.25);
+  color: #ffffff;
+}
+
+.spin {
+  animation: topbar-spin 1s linear infinite;
+}
+
+@keyframes topbar-spin {
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 .run-pill:hover:not(:disabled) {

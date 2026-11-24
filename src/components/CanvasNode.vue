@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue';
+import { computed, onBeforeUnmount, ref, watch } from 'vue';
 import {
   Image as ImageIcon,
   Film,
@@ -13,6 +13,8 @@ import {
   Plus,
   Loader2,
   Link2,
+  Copy,
+  Check,
 } from 'lucide-vue-next';
 import { apiClient } from '@/api/client';
 import { NODE_DEFS } from '@/data/nodeDefs';
@@ -36,8 +38,120 @@ const audioRef = ref<HTMLAudioElement | null>(null);
 const genVideoRef = ref<HTMLVideoElement | null>(null);
 const uploading = ref(false);
 const playingAudio = ref(false);
+const copiedError = ref(false);
+const elapsedSec = ref(0);
+let elapsedTimer: ReturnType<typeof setInterval> | null = null;
+
+watch(
+  () => props.card.status,
+  (st) => {
+    if (st === 'running') {
+      elapsedSec.value = 0;
+      if (elapsedTimer) clearInterval(elapsedTimer);
+      elapsedTimer = setInterval(() => {
+        elapsedSec.value += 1;
+      }, 1000);
+    } else if (elapsedTimer) {
+      clearInterval(elapsedTimer);
+      elapsedTimer = null;
+    }
+  },
+  { immediate: true },
+);
+
+onBeforeUnmount(() => {
+  if (elapsedTimer) {
+    clearInterval(elapsedTimer);
+    elapsedTimer = null;
+  }
+});
+
+const elapsedText = computed(() => {
+  const m = Math.floor(elapsedSec.value / 60);
+  const s = elapsedSec.value % 60;
+  return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+});
+
+const estimatedPercent = computed(() => {
+  const target = props.card.type === 'video' ? 75 : 22;
+  const pct = Math.round(12 + 82 * (1 - Math.exp(-elapsedSec.value / target)));
+  return Math.min(94, Math.max(12, pct));
+});
+
+async function copyNodeError() {
+  const raw = String(props.card.error || '').trim();
+  if (!raw) return;
+  let ok = false;
+  if (navigator.clipboard?.writeText) {
+    try {
+      await navigator.clipboard.writeText(raw);
+      ok = true;
+    } catch {
+      ok = false;
+    }
+  }
+  if (!ok) {
+    try {
+      const ta = document.createElement('textarea');
+      ta.value = raw;
+      ta.style.position = 'fixed';
+      ta.style.opacity = '0';
+      document.body.appendChild(ta);
+      ta.select();
+      ok = document.execCommand('copy');
+      document.body.removeChild(ta);
+    } catch {
+      ok = false;
+    }
+  }
+  if (ok) {
+    copiedError.value = true;
+    canvas.showToast('已复制原始报错信息');
+    window.setTimeout(() => {
+      copiedError.value = false;
+    }, 1800);
+  } else {
+    canvas.showToast('复制失败，请手动选中复制');
+  }
+}
 
 const def = computed(() => NODE_DEFS[props.card.type] || NODE_DEFS.prompt);
+
+const IMAGE_CHANNELS: Array<{ id: 'tensor' | 'ark' | 'local'; label: string }> = [
+  { id: 'tensor', label: 'Tensor' },
+  { id: 'ark', label: '火山方舟' },
+  { id: 'local', label: '本地预览' },
+];
+
+const selectedImageChannel = computed<'tensor' | 'ark' | 'local'>(() => {
+  const curId = props.card.model || def.value.defaultModel || '';
+  const match = (def.value.models || []).find((m) => m.id === curId);
+  if (match?.provider === 'tensor' || match?.provider === 'ark' || match?.provider === 'local') {
+    return match.provider;
+  }
+  return 'tensor';
+});
+
+const filteredGenericModels = computed(() => {
+  const all = def.value.models || [];
+  if (props.card.type !== 'image') return all;
+  return all.filter((m) => (m.provider || 'ark') === selectedImageChannel.value);
+});
+
+async function onImageChannelChange(ch: 'tensor' | 'ark' | 'local') {
+  const list = (def.value.models || []).filter((m) => (m.provider || 'ark') === ch);
+  if (list.length) {
+    props.card.model = list[0].id;
+    canvas.scheduleSave();
+  }
+  if (ch === 'tensor' || ch === 'ark') {
+    try {
+      await apiClient.saveConfig({ video_provider: ch });
+    } catch {
+      // ignore transient error
+    }
+  }
+}
 
 const activeIndex = computed(() => {
   const list = props.card.results || [];
@@ -78,6 +192,7 @@ const acceptsConnection = computed(() => {
 const waveformBars = [18, 34, 24, 52, 72, 46, 86, 62, 38, 78, 92, 54, 42, 68, 84, 50, 30, 62, 74, 40, 26, 48, 32, 20];
 
 const cardWidth = computed(() => {
+  if (props.card.type === 'image') return Math.max(props.card.width || 0, 290);
   if (props.card.width) return props.card.width;
   if (props.card.type === 'video') return 210;
   if (props.card.type === 'source') return 176;
@@ -118,7 +233,10 @@ async function handleFileUpload(event: Event) {
     props.card.status = 'done';
     canvas.markDownstreamStale(props.card.id, '参考素材已更新');
     canvas.scheduleSave();
-    canvas.showToast(`已替换素材：${res.asset.name}`);
+    const adjusted = Boolean((res.asset as any)?.duration_adjusted);
+    canvas.showToast(
+      adjusted ? `已替换素材并自动适配时长（2-15s）：${res.asset.name}` : `已替换素材：${res.asset.name}`,
+    );
   } catch (err: any) {
     canvas.showToast(`上传失败：${err?.message || '未知错误'}`);
   } finally {
@@ -402,9 +520,11 @@ function onVideoControlsPointerDown(event: PointerEvent) {
       <template v-if="card.status === 'running'">
         <div class="video-placeholder running-state">
           <Loader2 :size="26" class="spin lime" />
-          <strong class="run-title">云端视频生成中…</strong>
-          <div class="run-bar-track"><div class="run-bar-fill" /></div>
-          <span class="run-sub">正在轮询云端成片（约 30~120 秒）</span>
+          <strong class="run-title">云端视频生成中… {{ estimatedPercent }}%</strong>
+          <div class="run-bar-track">
+            <div class="run-bar-progress" :style="{ width: estimatedPercent + '%' }" />
+          </div>
+          <span class="run-sub">已耗时 {{ elapsedText }} · 正在轮询云端成片</span>
           <button type="button" class="node-stop-btn" @pointerdown.stop @click="canvas.cancelNode(card.id)">停止生成</button>
         </div>
       </template>
@@ -452,45 +572,81 @@ function onVideoControlsPointerDown(event: PointerEvent) {
         </div>
       </template>
 
-      <div v-if="card.error" class="node-err-pill">{{ card.error }}</div>
+      <div v-if="card.error" class="node-err-pill" @pointerdown.stop>
+        <div class="err-head">
+          <span>报错信息</span>
+          <button
+            type="button"
+            class="err-copy-btn"
+            :class="{ copied: copiedError }"
+            title="复制原始报错"
+            @click.stop="copyNodeError"
+          >
+            <Check v-if="copiedError" :size="11" />
+            <Copy v-else :size="11" />
+            <span>{{ copiedError ? '已复制' : 'Copy' }}</span>
+          </button>
+        </div>
+        <div class="err-text">{{ card.error }}</div>
+      </div>
     </div>
 
     <!-- 3. Compact Generic Card (Image Gen / Prompt / Legacy nodes) -->
     <div v-else class="rh-surface generic-surface" @pointerdown.stop="emit('drag-start', $event, card)">
+      <div v-if="card.status === 'running'" class="generic-running-overlay" @pointerdown.stop>
+        <Loader2 :size="24" class="spin lime" />
+        <strong class="run-title">{{ card.type === 'image' ? 'AI 生图生成中…' : '节点运行中…' }} {{ estimatedPercent }}%</strong>
+        <div class="run-bar-track">
+          <div class="run-bar-progress" :style="{ width: estimatedPercent + '%' }" />
+        </div>
+        <span class="run-sub">已耗时 {{ elapsedText }}</span>
+        <button type="button" class="node-stop-btn" @click="canvas.cancelNode(card.id)">停止生成</button>
+      </div>
       <div v-if="activeResult && (activeResult.url || activeResult.dataUrl)" class="generic-preview">
         <img :src="activeResult.url || activeResult.dataUrl" :alt="card.name" class="cover-media" draggable="false" />
       </div>
       <div class="generic-body">
-        <div v-if="def.models && def.models.length" class="generic-controls" @pointerdown.stop>
-          <select
-            :value="card.model || def.defaultModel || def.models[0]?.id"
-            class="generic-select"
-            title="选择生成模型"
-            @change="
-              card.model = ($event.target as HTMLSelectElement).value;
-              canvas.scheduleSave();
-            "
-          >
-            <option v-for="m in def.models" :key="m.id" :value="m.id">{{ m.label }}</option>
-          </select>
-          <select
-            v-if="card.type === 'image'"
-            :value="card.aspect || '16:9'"
-            class="generic-select aspect"
-            title="画面比例"
-            @change="
-              card.aspect = ($event.target as HTMLSelectElement).value;
-              canvas.scheduleSave();
-            "
-          >
-            <option value="1:1">1:1</option>
-            <option value="16:9">16:9</option>
-            <option value="9:16">9:16</option>
-            <option value="3:4">3:4</option>
-            <option value="4:3">4:3</option>
-            <option value="2:3">2:3</option>
-            <option value="3:2">3:2</option>
-          </select>
+        <div v-if="def.models && def.models.length" class="generic-controls-wrap" @pointerdown.stop>
+          <div v-if="card.type === 'image'" class="generic-controls">
+            <select
+              :value="selectedImageChannel"
+              class="generic-select channel"
+              title="选择渠道"
+              @change="onImageChannelChange(($event.target as HTMLSelectElement).value as 'tensor' | 'ark' | 'local')"
+            >
+              <option v-for="ch in IMAGE_CHANNELS" :key="ch.id" :value="ch.id">{{ ch.label }}</option>
+            </select>
+            <select
+              :value="card.aspect || '16:9'"
+              class="generic-select aspect"
+              title="画面比例"
+              @change="
+                card.aspect = ($event.target as HTMLSelectElement).value;
+                canvas.scheduleSave();
+              "
+            >
+              <option value="1:1">1:1</option>
+              <option value="16:9">16:9</option>
+              <option value="9:16">9:16</option>
+              <option value="3:4">3:4</option>
+              <option value="4:3">4:3</option>
+              <option value="2:3">2:3</option>
+              <option value="3:2">3:2</option>
+            </select>
+          </div>
+          <div class="generic-controls">
+            <select
+              :value="card.model || filteredGenericModels[0]?.id"
+              class="generic-select"
+              title="选择生成模型"
+              @change="
+                card.model = ($event.target as HTMLSelectElement).value;
+                canvas.scheduleSave();
+              "
+            >
+              <option v-for="m in filteredGenericModels" :key="m.id" :value="m.id">{{ m.label }}</option>
+            </select>
+          </div>
         </div>
         <textarea
           v-if="card.type === 'prompt' || card.type === 'image' || card.type === 'storyboard'"
@@ -501,7 +657,23 @@ function onVideoControlsPointerDown(event: PointerEvent) {
           @pointerdown.stop
           @change="canvas.scheduleSave()"
         />
-        <div v-if="card.error" class="generic-err">{{ card.error }}</div>
+        <div v-if="card.error" class="generic-err" @pointerdown.stop>
+          <div class="err-head">
+            <span>报错信息</span>
+            <button
+              type="button"
+              class="err-copy-btn"
+              :class="{ copied: copiedError }"
+              title="复制原始报错"
+              @click.stop="copyNodeError"
+            >
+              <Check v-if="copiedError" :size="11" />
+              <Copy v-else :size="11" />
+              <span>{{ copiedError ? '已复制' : 'Copy' }}</span>
+            </button>
+          </div>
+          <div class="err-text">{{ card.error }}</div>
+        </div>
         <div class="generic-foot">
           <span class="chip-tag">
             <Sparkles :size="11" /> {{ def.title }}
@@ -880,64 +1052,198 @@ function onVideoControlsPointerDown(event: PointerEvent) {
   left: 8px;
   right: 8px;
   bottom: 8px;
-  padding: 5px 8px;
+  z-index: 5;
+  max-height: 170px;
+  overflow-y: auto;
+  padding: 6px 8px;
   border-radius: 8px;
-  background: rgba(255, 107, 107, 0.2);
-  border: 1px solid rgba(255, 107, 107, 0.45);
+  background: rgba(42, 16, 18, 0.94);
+  backdrop-filter: blur(8px);
+  border: 1px solid rgba(255, 107, 107, 0.5);
   color: #ffd2d2;
   font-size: 11px;
+  display: grid;
+  gap: 4px;
+  cursor: default;
+}
+
+.err-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  font-size: 10.5px;
+  color: #ff9c9c;
+}
+
+.err-copy-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 1px 6px;
+  border-radius: 5px;
+  border: 1px solid rgba(255, 160, 160, 0.35);
+  background: rgba(255, 255, 255, 0.08);
+  color: #ffe3e3;
+  font-size: 10.5px;
+  line-height: 1.3;
+  cursor: pointer;
+}
+
+.err-copy-btn:hover {
+  background: rgba(255, 255, 255, 0.18);
+  color: #ffffff;
+}
+
+.err-copy-btn.copied {
+  border-color: rgba(204, 255, 0, 0.6);
+  background: rgba(204, 255, 0, 0.16);
+  color: var(--accent);
+}
+
+.err-text {
+  line-height: 1.4;
+  word-break: break-word;
+  user-select: text;
+  cursor: text;
+}
+
+.generic-surface {
+  position: relative;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.generic-running-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 6;
+  background: rgba(15, 16, 20, 0.88);
+  backdrop-filter: blur(8px);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 16px;
+  text-align: center;
+}
+
+.run-bar-progress {
+  position: relative;
+  height: 100%;
+  border-radius: 999px;
+  background: linear-gradient(90deg, #9be600, #ccff00, #e8ff85);
+  transition: width 0.85s ease-out;
+  overflow: hidden;
+}
+
+.run-bar-progress::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.45), transparent);
+  animation: bar-shimmer 1.4s ease-in-out infinite;
+}
+
+@keyframes bar-shimmer {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(100%);
+  }
 }
 
 .generic-preview {
-  height: 140px;
+  width: 100%;
+  height: 168px;
   background: #0d0d0f;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+.generic-preview .cover-media {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
 }
 
 .generic-body {
+  width: 100%;
+  box-sizing: border-box;
   padding: 10px;
-  display: grid;
+  display: flex;
+  flex-direction: column;
   gap: 8px;
+  min-width: 0;
 }
 
 .generic-textarea {
   width: 100%;
+  box-sizing: border-box;
+  min-width: 0;
   border: 1px solid var(--line);
   border-radius: 8px;
   background: var(--surface-group);
   color: var(--text);
   padding: 7px 9px;
   font-size: 12px;
+  line-height: 1.45;
   resize: vertical;
   outline: none;
   user-select: text;
 }
 
 .generic-foot {
+  width: 100%;
+  box-sizing: border-box;
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: 8px;
+}
+
+.generic-controls-wrap {
+  width: 100%;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
 }
 
 .generic-controls {
+  width: 100%;
+  box-sizing: border-box;
   display: flex;
   align-items: center;
   gap: 6px;
+  min-width: 0;
 }
 
 .generic-select {
-  flex: 1;
+  flex: 1 1 0;
+  width: 0;
   min-width: 0;
+  max-width: 100%;
+  box-sizing: border-box;
   border: 1px solid var(--line);
   border-radius: 7px;
-  padding: 4px 6px;
+  padding: 5px 7px;
   background: var(--panel);
-  color: var(--ink);
+  color: var(--text);
   font-size: 11.5px;
   outline: none;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .generic-select.aspect {
-  flex: 0 0 64px;
+  flex: 0 0 68px;
+  width: 68px;
 }
 
 .generic-select:focus {
@@ -945,6 +1251,8 @@ function onVideoControlsPointerDown(event: PointerEvent) {
 }
 
 .generic-err {
+  width: 100%;
+  box-sizing: border-box;
   font-size: 11px;
   line-height: 1.4;
   color: #ffb8b8;

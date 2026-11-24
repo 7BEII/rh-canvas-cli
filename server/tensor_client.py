@@ -3,6 +3,9 @@ from __future__ import annotations
 import json
 import mimetypes
 import os
+import re
+import subprocess
+import tempfile
 import threading
 import time
 from pathlib import Path
@@ -13,7 +16,13 @@ from uuid import uuid4
 import requests
 from PIL import Image
 
-from .asset_store import kind_for_suffix, mime_for_suffix
+from .asset_store import (
+    MEDIA_MAX_DURATION_SEC,
+    MEDIA_MIN_DURATION_SEC,
+    kind_for_suffix,
+    mime_for_suffix,
+    normalize_media_duration_file,
+)
 
 DEFAULT_TENSOR_BASE = "https://openapi.tensorart.me/canvas-openapi"
 TUSI_TENSOR_BASE = "https://openapi.tusiart.cn/canvas-openapi"
@@ -29,6 +38,8 @@ TENSOR_IMAGE_MODELS: dict[str, str] = {
 }
 
 TENSOR_VIDEO_MODELS: dict[str, str] = {
+    "tensor:SEEDANCE_2_5": "DEFAULT",
+    "tensor:SEEDANCE_2_5_FLASH": "DEFAULT",
     "tensor:SEEDANCE_2_0": "SEEDANCE_2_0",
     "tensor:SEEDANCE_2_0_FAST": "SEEDANCE_2_0_FAST",
     "tensor:KLING_V3": "KLING_V3",
@@ -39,6 +50,11 @@ TENSOR_VIDEO_MODELS: dict[str, str] = {
     "tensor:WAN_2_7_T2V": "WAN_2_7_T2V",
     "tensor:WAN_2_7_I2V": "WAN_2_7_I2V",
     "tensor:WAN_2_7_R2V": "WAN_2_7_R2V",
+}
+
+TENSOR_PROMPT_MODEL_HINTS: dict[str, str] = {
+    "tensor:SEEDANCE_2_5": "Seedance 2.5",
+    "tensor:SEEDANCE_2_5_FLASH": "Seedance 2.5 Flash",
 }
 
 EXT_TO_FILE_TYPE: dict[str, str] = {
@@ -451,17 +467,152 @@ class TensorCanvasClient:
 
         return []
 
+    def _upload_with_duration_guard(
+        self,
+        file_path: Path,
+        kind: str,
+        min_sec: float = MEDIA_MIN_DURATION_SEC,
+        max_sec: float = MEDIA_MAX_DURATION_SEC,
+    ) -> dict[str, Any]:
+        """Upload media; normalize video/audio duration into [min_sec, max_sec] (Seedance 2-15s limit)."""
+        if kind not in ("video", "audio"):
+            return self.upload_file(file_path)
+        with tempfile.TemporaryDirectory(prefix="tensor-dur-") as tmpdir:
+            norm_path, _adjusted, _dur = normalize_media_duration_file(
+                file_path,
+                kind,
+                min_sec=min_sec,
+                max_sec=max_sec,
+                output_dir=Path(tmpdir),
+            )
+            return self.upload_file(norm_path)
+
+    def _stage_media_nodes(
+        self,
+        canvas_id: str,
+        items: list[dict[str, Any]],
+    ) -> list[dict[str, Any]]:
+        """Upload local media files and add them as persistent canvas nodes via /workflow/actions."""
+        staged: list[dict[str, Any]] = []
+        nodes_in: list[dict[str, Any]] = []
+        kind_to_type = {
+            "image": ("IMAGE", "image", "PROMPT_REFERENCE_TYPE_IMAGE"),
+            "video": ("VIDEO", "video", "PROMPT_REFERENCE_TYPE_VIDEO"),
+            "audio": ("AUDIO", "audio", "PROMPT_REFERENCE_TYPE_AUDIO"),
+        }
+        for idx, item in enumerate(items):
+            kind = str(item.get("kind") or "image").lower()
+            if kind not in kind_to_type:
+                continue
+            local_p = self._resolve_local_file(item)
+            if local_p is None:
+                continue
+            ntype, branch, ref_type = kind_to_type[kind]
+            up = self._upload_with_duration_guard(local_p, kind)
+            node_id = f"ref-{kind}-{idx + 1}"
+            tag = str(item.get("tag") or f"@{kind}{idx + 1}").strip()
+            title = str(item.get("name") or item.get("label") or tag or local_p.stem)[:60]
+            nodes_in.append(
+                {
+                    "id": node_id,
+                    "type": ntype,
+                    "subType": "UPLOAD",
+                    "title": f"{tag} {title}".strip(),
+                    "position": {"x": 80 + (idx % 4) * 220, "y": 80 + (idx // 4) * 220},
+                    "data": {branch: {"url": up["url"]}},
+                }
+            )
+            staged.append(
+                {
+                    "node_id": node_id,
+                    "tag": tag,
+                    "kind": kind,
+                    "ref_type": ref_type,
+                    "display_name": f"{tag}({title})" if title and title != tag else tag,
+                    "url": up["url"],
+                }
+            )
+
+        if nodes_in:
+            res = self._post_json(
+                "/workflow/actions",
+                {"canvasId": canvas_id, "actions": [{"action": "add", "nodes": nodes_in}]},
+                timeout=60,
+            )
+            created_nodes = (res.get("created") or {}).get("nodes") or []
+            if len(created_nodes) == len(staged):
+                for s, cn in zip(staged, created_nodes):
+                    if cn.get("id"):
+                        s["node_id"] = str(cn["id"])
+        return staged
+
+    @staticmethod
+    def _build_workflow_context(
+        message: str,
+        staged: list[dict[str, Any]],
+    ) -> dict[str, Any] | None:
+        """Convert @图片N / @视频N / @音频N tags into structured workflowContext promptBlocks."""
+        if not staged:
+            return None
+        by_tag = {s["tag"]: s for s in staged if s.get("tag")}
+        selected_ids = [s["node_id"] for s in staged]
+        blocks: list[dict[str, Any]] = []
+
+        pattern = re.compile(r"@(?:图片|视频|音频)\d+")
+        pos = 0
+        mentioned_nodes: set[str] = set()
+        for m in pattern.finditer(message):
+            if m.start() > pos:
+                blocks.append({"type": "PROMPT_BLOCK_TYPE_TEXT", "text": message[pos : m.start()]})
+            tag = m.group(0)
+            target = by_tag.get(tag)
+            if target:
+                mentioned_nodes.add(target["node_id"])
+                blocks.append(
+                    {
+                        "type": "PROMPT_BLOCK_TYPE_MENTION",
+                        "referenceType": target["ref_type"],
+                        "displayName": target["display_name"],
+                        "nodeKey": target["node_id"],
+                    }
+                )
+            else:
+                blocks.append({"type": "PROMPT_BLOCK_TYPE_TEXT", "text": tag})
+            pos = m.end()
+        if pos < len(message):
+            blocks.append({"type": "PROMPT_BLOCK_TYPE_TEXT", "text": message[pos:]})
+
+        unmentioned = [s for s in staged if s["node_id"] not in mentioned_nodes]
+        if unmentioned:
+            blocks.append({"type": "PROMPT_BLOCK_TYPE_TEXT", "text": "\n参考素材节点："})
+            for s in unmentioned:
+                blocks.append(
+                    {
+                        "type": "PROMPT_BLOCK_TYPE_MENTION",
+                        "referenceType": s["ref_type"],
+                        "displayName": s["display_name"],
+                        "nodeKey": s["node_id"],
+                    }
+                )
+
+        return {
+            "selectedNodeIds": selected_ids,
+            "promptBlocks": blocks[:256],
+        }
+
     def _run_agent_generation(
         self,
         *,
         expected_kind: str,
         pinned_model: str,
         message: str,
-        input_files: list[dict[str, Any]],
+        ref_items: list[dict[str, Any]],
         cancel_event: threading.Event | None = None,
         on_session_created: Callable[[str, str], None] | None = None,
     ) -> dict[str, Any]:
         canvas_id = self.create_canvas(name=f"RH-{expected_kind}-{pinned_model}")
+        staged = self._stage_media_nodes(canvas_id, ref_items)
+        wf_ctx = self._build_workflow_context(message, staged)
         session_id = self.create_session(canvas_id, title=pinned_model)
         if on_session_created:
             on_session_created(canvas_id, session_id)
@@ -475,8 +626,8 @@ class TensorCanvasClient:
             "message": message,
             "pinnedModel": pinned_model,
         }
-        if input_files:
-            payload["files"] = input_files[:12]
+        if wf_ctx:
+            payload["workflowContext"] = wf_ctx
 
         res: dict[str, Any] = {}
         for attempt in range(2):
@@ -555,7 +706,7 @@ class TensorCanvasClient:
             except Exception:
                 pass
         if not urls:
-            poll_timeout = 600 if expected_kind == "video" else 240
+            poll_timeout = 1200 if expected_kind == "video" else 300
             urls.extend(
                 self._poll_workflow_output(
                     canvas_id=canvas_id,
@@ -593,25 +744,26 @@ class TensorCanvasClient:
         cancel_event: threading.Event | None = None,
         on_session_created: Callable[[str, str], None] | None = None,
     ) -> dict[str, Any]:
-        input_files: list[dict[str, Any]] = []
-        for asset in ref_assets[:12]:
+        ref_items: list[dict[str, Any]] = []
+        img_idx = 0
+        for asset in ref_assets:
             if asset.get("kind") != "image":
                 continue
-            local_p = self._resolve_local_file(asset)
-            if local_p is not None:
-                input_files.append(self.upload_file(local_p))
+            if self._resolve_local_file(asset) is not None:
+                img_idx += 1
+                ref_items.append({**asset, "tag": f"@图片{img_idx}"})
 
-        pinned = resolve_pinned_model(model, kind="image", has_refs=bool(input_files))
+        pinned = resolve_pinned_model(model, kind="image", has_refs=bool(ref_items))
         clean_prompt = (prompt or "").strip() or "生成一张高质量电影感画面"
         aspect_hint = f"，画面比例 {aspect}" if aspect and aspect != "自适应" else ""
-        ref_hint = "，参考上传的图片" if input_files else ""
+        ref_hint = "，结合画布上已选中的参考图节点" if ref_items else ""
         full_msg = f"请直接生成图片（不要反问，立即调用生图工具）{ref_hint}{aspect_hint}：\n{clean_prompt}"
 
         gen = self._run_agent_generation(
             expected_kind="image",
             pinned_model=pinned,
             message=full_msg,
-            input_files=input_files,
+            ref_items=ref_items,
             cancel_event=cancel_event,
             on_session_created=on_session_created,
         )
@@ -664,20 +816,21 @@ class TensorCanvasClient:
         cancel_event: threading.Event | None = None,
         on_session_created: Callable[[str, str], None] | None = None,
     ) -> dict[str, Any]:
-        input_files: list[dict[str, Any]] = []
-        slot_notes: list[str] = []
+        ref_items: list[dict[str, Any]] = []
         if mode != "t2v":
-            for idx, s in enumerate(slots[:12], start=1):
-                local_p = self._resolve_local_file(s)
-                if local_p is not None:
-                    input_files.append(self.upload_file(local_p))
-                    tag = str(s.get("tag") or f"素材{idx}")
-                    label = str(s.get("label") or local_p.name)
-                    slot_notes.append(f"附件{len(input_files)}={tag}({label})")
+            for s in slots:
+                if self._resolve_local_file(s) is not None:
+                    ref_items.append(s)
 
-        pinned = resolve_pinned_model(model, kind="video", has_refs=bool(input_files))
+        pinned = resolve_pinned_model(model, kind="video", has_refs=bool(ref_items))
+        model_hint_name = TENSOR_PROMPT_MODEL_HINTS.get(str(model or "").strip())
+        if not model_hint_name and "2.5" in str(model or "").lower():
+            model_hint_name = "Seedance 2.5 Flash" if "flash" in str(model or "").lower() else "Seedance 2.5"
+            pinned = "DEFAULT"
         clean_prompt = (prompt or "").strip() or "生成一段电影感运镜视频"
         hints: list[str] = []
+        if model_hint_name:
+            hints.append(f"务必使用 {model_hint_name} 模型")
         if aspect and aspect != "自适应":
             hints.append(f"比例 {aspect}")
         if duration:
@@ -687,14 +840,14 @@ class TensorCanvasClient:
         if not generate_audio:
             hints.append("静音/不生成音频")
         hint_str = "，".join(hints)
-        map_line = f"\n附件与引用标签对应关系：{'; '.join(slot_notes)}" if slot_notes else ""
-        full_msg = f"请直接生成视频（不要反问，立即调用视频生成工具，{hint_str}）：{map_line}\n{clean_prompt}"
+        ref_note = "，使用画布上已选中的所有参考素材节点" if ref_items else ""
+        full_msg = f"请直接生成视频（不要反问，立即调用视频生成工具{ref_note}，{hint_str}）：\n{clean_prompt}"
 
         gen = self._run_agent_generation(
             expected_kind="video",
             pinned_model=pinned,
             message=full_msg,
-            input_files=input_files,
+            ref_items=ref_items,
             cancel_event=cancel_event,
             on_session_created=on_session_created,
         )

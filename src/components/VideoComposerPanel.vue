@@ -51,7 +51,7 @@ const pickerOpen = ref(false);
 const pickerFilter = ref<'all' | 'image' | 'video' | 'audio'>('all');
 const pickerSearch = ref('');
 const uploading = ref(false);
-const activeProvider = ref<'runninghub' | 'ark'>('runninghub');
+const activeProvider = ref<'runninghub' | 'ark' | 'tensor'>('tensor');
 const elapsedSec = ref(0);
 let elapsedTimer: ReturnType<typeof setInterval> | null = null;
 
@@ -86,11 +86,39 @@ const modes: Array<{ id: VideoGenMode; label: string }> = [
   { id: 'firstLastFrame', label: '首尾帧' },
 ];
 
+const providerTabs: Array<{ id: 'tensor' | 'runninghub' | 'ark'; label: string; short: string }> = [
+  { id: 'tensor', label: 'Tensor', short: 'Tensor' },
+  { id: 'runninghub', label: 'RunningHub', short: 'RH' },
+  { id: 'ark', label: '火山方舟', short: '火山' },
+];
+
 const models = computed(() => NODE_DEFS.video.models || []);
+const filteredModels = computed(() =>
+  models.value.filter((item) => (item.provider || 'ark') === activeProvider.value),
+);
+const providerShortLabel = computed(
+  () => providerTabs.find((p) => p.id === activeProvider.value)?.short || 'Tensor',
+);
 const currentModelLabel = computed(() => {
-  const m = models.value.find((item) => item.id === props.card.model);
-  return m?.label || 'Seedance 2.0 Mini';
+  const inChannel = filteredModels.value.find((item) => item.id === props.card.model);
+  if (inChannel) return inChannel.label;
+  const anyMatch = models.value.find((item) => item.id === props.card.model);
+  return anyMatch?.label || filteredModels.value[0]?.label || 'Seedance 2.5 Flash';
 });
+
+async function switchChannel(ch: 'tensor' | 'runninghub' | 'ark') {
+  activeProvider.value = ch;
+  const list = models.value.filter((item) => (item.provider || 'ark') === ch);
+  if (list.length && !list.some((m) => m.id === props.card.model)) {
+    props.card.model = list[0].id;
+    canvas.scheduleSave();
+  }
+  try {
+    await apiClient.saveConfig({ video_provider: ch });
+  } catch {
+    // ignore transient save error
+  }
+}
 
 const styleOptions = ['无', '古风奇幻', '电影写实', '3D 动画', '国风仙侠', '赛博霓虹', '胶片质感'];
 const aspectOptions = ['自适应', '16:9', '4:3', '1:1', '3:4', '9:16', '21:9'];
@@ -336,7 +364,7 @@ onMounted(() => {
   void apiClient
     .getConfig()
     .then((res) => {
-      activeProvider.value = (res.config.video_provider as 'runninghub' | 'ark') || 'runninghub';
+      activeProvider.value = (res.config.video_provider as 'runninghub' | 'ark' | 'tensor') || 'tensor';
     })
     .catch(() => {});
 });
@@ -547,6 +575,13 @@ const estimatedPrice = computed(() => {
   };
   const tier = modelMul[modelId] ?? 1.0;
 
+  if (activeProvider.value === 'tensor') {
+    return {
+      text: 'Tensor Energy',
+      detail: `Tensor (Forge) 渠道按账号 Energy 实际消耗计费（${currentModelLabel.value} · ${res} ${dur}秒 × ${batch}）`,
+    };
+  }
+
   if (activeProvider.value === 'runninghub') {
     // Baseline calibrated against live RunningHub sparkvideo-2.0-mini billing (5s multimodal w/ video = ¥4.00)
     const baseRate = hasVideoRef
@@ -730,7 +765,7 @@ function handleSubmit() {
       <!-- Live Progress Strip while Generating -->
       <div v-if="card.status === 'running'" class="gen-progress-strip">
         <div class="gen-progress-meta">
-          <span><Loader2 :size="12" class="spin lime-dot" /> 正在调用 {{ activeProvider === 'runninghub' ? 'RunningHub' : '火山方舟' }} 生成视频（{{ currentModelLabel }}）…</span>
+          <span><Loader2 :size="12" class="spin lime-dot" /> 正在调用 {{ activeProvider === 'tensor' ? 'Tensor (Forge)' : activeProvider === 'runninghub' ? 'RunningHub' : '火山方舟' }} 生成视频（{{ currentModelLabel }}）…</span>
           <div class="gen-progress-right">
             <strong>已耗时 {{ elapsedSec }}s</strong>
             <button type="button" class="stop-btn" @click="canvas.cancelNode(card.id)">停止</button>
@@ -748,14 +783,27 @@ function handleSubmit() {
           <div class="ctrl-anchor">
             <button type="button" class="ctrl-btn" @click.stop="togglePopover('model')">
               <Sparkles :size="13" class="lime-dot" />
+              <span class="ch-badge">{{ providerShortLabel }}</span>
               <span>{{ currentModelLabel }}</span>
               <ChevronDown :size="13" />
             </button>
 
             <div v-if="activePopover === 'model'" class="ctrl-popover model-pop" @click.stop>
-              <div class="pop-head">选择视频模型</div>
+              <div class="pop-head">选择渠道与模型</div>
+              <div class="pop-channel-tabs">
+                <button
+                  v-for="tab in providerTabs"
+                  :key="tab.id"
+                  type="button"
+                  class="pop-ch-btn"
+                  :class="{ active: activeProvider === tab.id }"
+                  @click="switchChannel(tab.id)"
+                >
+                  {{ tab.label }}
+                </button>
+              </div>
               <button
-                v-for="m in models"
+                v-for="m in filteredModels"
                 :key="m.id"
                 type="button"
                 class="model-row"
@@ -1560,11 +1608,52 @@ function handleSubmit() {
   padding: 2px 6px 8px;
 }
 
+.ch-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 1px 6px;
+  border-radius: 5px;
+  background: rgba(204, 255, 0, 0.14);
+  color: var(--accent);
+  font-size: 10.5px;
+  font-weight: 600;
+  line-height: 1.4;
+}
+
 .model-pop {
-  width: 210px;
+  width: 248px;
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 3px;
+}
+
+.pop-channel-tabs {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 4px;
+  padding: 3px;
+  margin-bottom: 4px;
+  border-radius: 9px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--line);
+}
+
+.pop-ch-btn {
+  border: 1px solid transparent;
+  border-radius: 7px;
+  padding: 5px 4px;
+  background: transparent;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.pop-ch-btn.active {
+  background: var(--surface-selected);
+  border-color: var(--accent-border);
+  color: var(--accent);
+  font-weight: 600;
 }
 
 .model-row {

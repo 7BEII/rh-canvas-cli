@@ -1,0 +1,363 @@
+{
+  "schema_version": 1,
+  "id": "canvas-46d7dafc503541db9bb4936c89139f00",
+  "name": "LibTV 复刻 · Group 2 精简版",
+  "created_at": "2026-11-24T15:03:50.890746+00:00",
+  "updated_at": "2026-11-24T15:13:03.461899+00:00",
+  "node_count": 13,
+  "snapshot": {
+    "format": "rh-canvas",
+    "version": 1,
+    "exportedAt": "2026-11-24T15:13:03.461899+00:00",
+    "schemaVersion": 1,
+    "canvas": {
+      "cards": [
+        {
+          "id": "g2-1-i-AULduLdFnV",
+          "type": "source",
+          "mediaKind": "image",
+          "name": "人物三视图",
+          "x": 60,
+          "y": 20,
+          "width": 156,
+          "height": 92,
+          "refs": [],
+          "results": [
+            {
+              "kind": "image",
+              "label": "人物三视图",
+              "name": "libtv-g2-i-AULduLdFnV.png",
+              "url": "/api/assets/input/libtv-g2-i-AULduLdFnV.png"
+            }
+          ],
+          "activeResultIndex": 0,
+          "status": "done",
+          "selected": false
+        },
+        {
+          "id": "g2-3-i-g3Qd0lRWHc",
+          "type": "source",
+          "mediaKind": "image",
+          "name": "人脸参考",
+          "x": 60,
+          "y": 142,
+          "width": 148,
+          "height": 148,
+          "refs": [],
+          "results": [
+            {
+              "kind": "image",
+              "label": "人脸参考",
+              "name": "libtv-g2-i-g3Qd0lRWHc.jpg",
+              "url": "/api/assets/input/libtv-g2-i-g3Qd0lRWHc.jpg"
+            }
+          ],
+          "activeResultIndex": 0,
+          "status": "done",
+          "selected": false
+        },
+        {
+          "id": "g2-4-i-PGlOnDu5gE",
+          "type": "source",
+          "mediaKind": "image",
+          "name": "造型参考",
+          "x": 224,
+          "y": 142,
+          "width": 148,
+          "height": 148,
+          "refs": [],
+          "results": [
+            {
+              "kind": "image",
+              "label": "造型参考",
+              "name": "libtv-g2-i-PGlOnDu5gE.jpg",
+              "url": "/api/assets/input/libtv-g2-i-PGlOnDu5gE.jpg"
+            }
+          ],
+          "activeResultIndex": 0,
+          "status": "done",
+          "selected": false
+        },
+        {
+          "id": "g2-5-v-rXFlRmUu29",
+          "type": "source",
+          "mediaKind": "video",
+          "name": "深度动作参考",
+          "x": 388,
+          "y": 142,
+          "width": 148,
+          "height": 148,
+          "refs": [],
+          "results": [
+            {
+              "kind": "video",
+              "label": "深度动作参考",
+              "name": "libtv-g2-v-rXFlRmUu29.mp4",
+              "url": "/api/assets/input/libtv-g2-v-rXFlRmUu29.mp4"
+            }
+          ],
+          "activeResultIndex": 0,
+          "status": "done",
+          "selected": false
+        },
+        {
+          "id": "g2-6-a-QbdaPbbPZE",
+          "type": "source",
+          "mediaKind": "audio",
+          "name": "背景音乐",
+          "x": 552,
+          "y": 142,
+          "width": 156,
+          "height": 100,
+          "refs": [],
+          "results": [
+            {
+              "kind": "audio",
+              "label": "背景音乐",
+              "name": "libtv-g2-a-QbdaPbbPZE.mp3",
+              "url": "/api/assets/input/libtv-g2-a-QbdaPbbPZE.mp3"
+            }
+          ],
+          "activeResultIndex": 0,
+          "status": "done",
+          "selected": false
+        },
+        {
+          "id": "g2-7-i-ZAZmkeiuub",
+          "type": "source",
+          "mediaKind": "image",
+          "name": "场景1",
+          "x": 60,
+          "y": 334,
+          "width": 148,
+          "height": 198,
+          "refs": [],
+          "results": [
+            {
+              "kind": "image",
+              "label": "场景1",
+              "name": "libtv-g2-i-ZAZmkeiuub.png",
+              "url": "/api/assets/input/libtv-g2-i-ZAZmkeiuub.png"
+            }
+          ],
+          "activeResultIndex": 0,
+          "status": "done",
+          "selected": false
+        },
+        {
+          "id": "g2-8-i-mnW7h1CAPd",
+          "type": "source",
+          "mediaKind": "image",
+          "name": "场景2",
+          "x": 224,
+          "y": 334,
+          "width": 148,
+          "height": 198,
+          "refs": [],
+          "results": [
+            {
+              "kind": "image",
+              "label": "场景2",
+              "name": "libtv-g2-i-mnW7h1CAPd.png",
+              "url": "/api/assets/input/libtv-g2-i-mnW7h1CAPd.png"
+            }
+          ],
+          "activeResultIndex": 0,
+          "status": "done",
+          "selected": false
+        },
+        {
+          "id": "g2-9-i-0gUqhkVGQd",
+          "type": "source",
+          "mediaKind": "image",
+          "name": "场景3",
+          "x": 388,
+          "y": 334,
+          "width": 148,
+          "height": 198,
+          "refs": [],
+          "results": [
+            {
+              "kind": "image",
+              "label": "场景3",
+              "name": "libtv-g2-i-0gUqhkVGQd.png",
+              "url": "/api/assets/input/libtv-g2-i-0gUqhkVGQd.png"
+            }
+          ],
+          "activeResultIndex": 0,
+          "status": "done",
+          "selected": false
+        },
+        {
+          "id": "g2-10-i-3nFuK1KSVT",
+          "type": "source",
+          "mediaKind": "image",
+          "name": "场景4",
+          "x": 552,
+          "y": 334,
+          "width": 148,
+          "height": 198,
+          "refs": [],
+          "results": [
+            {
+              "kind": "image",
+              "label": "场景4",
+              "name": "libtv-g2-i-3nFuK1KSVT.png",
+              "url": "/api/assets/input/libtv-g2-i-3nFuK1KSVT.png"
+            }
+          ],
+          "activeResultIndex": 0,
+          "status": "done",
+          "selected": false
+        },
+        {
+          "id": "g2-11-i-Hg5J7C14rR",
+          "type": "source",
+          "mediaKind": "image",
+          "name": "场景5",
+          "x": 60,
+          "y": 564,
+          "width": 148,
+          "height": 198,
+          "refs": [],
+          "results": [
+            {
+              "kind": "image",
+              "label": "场景5",
+              "name": "libtv-g2-i-Hg5J7C14rR.png",
+              "url": "/api/assets/input/libtv-g2-i-Hg5J7C14rR.png"
+            }
+          ],
+          "activeResultIndex": 0,
+          "status": "done",
+          "selected": false
+        },
+        {
+          "id": "g2-12-i-d865ukVYdV",
+          "type": "source",
+          "mediaKind": "image",
+          "name": "场景6",
+          "x": 224,
+          "y": 564,
+          "width": 148,
+          "height": 198,
+          "refs": [],
+          "results": [
+            {
+              "kind": "image",
+              "label": "场景6",
+              "name": "libtv-g2-i-d865ukVYdV.png",
+              "url": "/api/assets/input/libtv-g2-i-d865ukVYdV.png"
+            }
+          ],
+          "activeResultIndex": 0,
+          "status": "done",
+          "selected": false
+        },
+        {
+          "id": "g2-13-i-WRVTAZB5RH",
+          "type": "source",
+          "mediaKind": "image",
+          "name": "场景7",
+          "x": 388,
+          "y": 564,
+          "width": 148,
+          "height": 198,
+          "refs": [],
+          "results": [
+            {
+              "kind": "image",
+              "label": "场景7",
+              "name": "libtv-g2-i-WRVTAZB5RH.png",
+              "url": "/api/assets/input/libtv-g2-i-WRVTAZB5RH.png"
+            }
+          ],
+          "activeResultIndex": 0,
+          "status": "done",
+          "selected": false
+        },
+        {
+          "id": "g2-2-v-EJVjurpsy7",
+          "type": "video",
+          "name": "视频成片",
+          "x": 800,
+          "y": 160,
+          "width": 210,
+          "height": 290,
+          "model": "tensor:SEEDANCE_2_5_FLASH",
+          "videoMode": "omni",
+          "aspect": "9:16",
+          "resolution": "720p",
+          "duration": 15,
+          "generateAudio": true,
+          "batchCount": 1,
+          "quality": "standard",
+          "stylePreset": "古风奇幻",
+          "prompt": "参考视频 @视频1  深度信息及镜头切换节奏，整体的音乐使用 @音频1  这一段音乐；\n\n @图片8 「人物三视图」节点输出的五宫格人物参考图 （人物三视图）为女孩人物形象，人物特征以 @图片8 「人物三视图」节点输出的五宫格人物参考图 为唯一标准，不可自行更改。\n\n分镜执行（动作/运镜/场景严格参照 @视频1  对应时间段，人物形象严格参照 @图片8 「人物三视图」节点输出的五宫格人物参考图 ）：\n\n镜头 1 ｜ 0.0–2.3s（2.3s）瀑布前凌空旋跃@视频1  对应画面， @图片8 「人物三视图」节点输出的五宫格人物参考图 为人物， @图片1  为这一段场景。\n景别/机位：远景，仰拍，固定机位\n画面：多层阶梯瀑布前，白衣持剑人凌空腾跃旋转，衣摆大幅翻飞，右上角阳光星芒光束洒落\n\n镜头 2 ｜ 2.3–4.4s（2.1s）湖岸挥剑旋身\n@视频1  对应画面， @图片8 「人物三视图」节点输出的五宫格人物参考图 为人物， @图片2  为这一段场景。\n景别/机位：中景，平视，随动作轻微跟移\n画面：女子立于绿松石色湖水岸边，连续挥剑、旋身转换方位，广袖与头纱翻飞\n\n镜头 3 ｜ 4.4–5.4s（约1.0s）纵身跃起前刺\n@视频1  对应画面， @图片8 「人物三视图」节点输出的五宫格人物参考图 为人物， @图片3  为这一段场景。\n景别/机位：中近景，俯拍\n画面：女子腾跃在空中，一手前伸握剑直指前方，衣摆扬起，背景为俯视下渐变蓝绿彩池与岸滩树林\n\n镜头 4 ｜ 5.4–6.4s（约1.0s）落足浅湖沉身\n@视频1  对应画面， @图片8 「人物三视图」节点输出的五宫格人物参考图 为人物， @图片4  为这一段场景。\n景别/机位：中景，平视（山谷远景）\n画面：女子自空中落定在两山夹峙的浅湖面上，屈膝沉身稳住身形，两侧青山夹湖形成纵深\n\n镜头 5 ｜ 6.4–9.9s（3.5s）浅水移步舞剑\n@视频1  对应画面， @图片8 「人物三视图」节点输出的五宫格人物参考图 为人物， @图片5  为这一段场景。\n景别/机位：中景，平视，镜头基本固定\n画面：女子在浅水中移步转身、扬臂展袖舞剑，脚下涟漪散开、动作带起水花\n\n镜头 6 ｜ 9.9–12.2s（2.3s）抬腿踢水 · 单腿旋身\n@视频1  对应画面， @图片8 「人物三视图」节点输出的五宫格人物参考图 为人物， @图片6  为这一段场景。\n景别/机位：中近景，随动作轻微调整\n画面：女子侧身抬腿踢水、单腿站立旋转，长剑保持握持，衣袂头纱随旋转大幅飘起\n\n镜头 7 ｜ 12.2–15.1s（2.9s）持剑定格凝望\n@视频1  对应画面， @图片8 「人物三视图」节点输出的五宫格人物参考图 为人物， @图片7  为这一段场景。\n景别/机位：近景特写，平拍，缓慢向面部推进\n画面：女子双手握剑、正视镜头定格，白纱头冠红唇清晰，剑竖在画面左侧，背景青绿山水完全虚化\n\n\n约束： @图片8 「人物三视图」节点输出的五宫格人物参考图 中的发色/服装颜色/伞样式为固定值不可修改；禁止出现与 @图片8 「人物三视图」节点输出的五宫格人物参考图 不符的第二种人物形象。",
+          "localMedia": [],
+          "refs": [
+            {
+              "from": "g2-7-i-ZAZmkeiuub",
+              "kind": "image",
+              "label": "场景1"
+            },
+            {
+              "from": "g2-8-i-mnW7h1CAPd",
+              "kind": "image",
+              "label": "场景2"
+            },
+            {
+              "from": "g2-9-i-0gUqhkVGQd",
+              "kind": "image",
+              "label": "场景3"
+            },
+            {
+              "from": "g2-10-i-3nFuK1KSVT",
+              "kind": "image",
+              "label": "场景4"
+            },
+            {
+              "from": "g2-11-i-Hg5J7C14rR",
+              "kind": "image",
+              "label": "场景5"
+            },
+            {
+              "from": "g2-12-i-d865ukVYdV",
+              "kind": "image",
+              "label": "场景6"
+            },
+            {
+              "from": "g2-13-i-WRVTAZB5RH",
+              "kind": "image",
+              "label": "场景7"
+            },
+            {
+              "from": "g2-1-i-AULduLdFnV",
+              "kind": "image",
+              "label": "人物三视图"
+            },
+            {
+              "from": "g2-5-v-rXFlRmUu29",
+              "kind": "video",
+              "label": "深度动作参考"
+            },
+            {
+              "from": "g2-6-a-QbdaPbbPZE",
+              "kind": "audio",
+              "label": "背景音乐"
+            }
+          ],
+          "results": [],
+          "status": "idle",
+          "selected": false
+        }
+      ],
+      "seq": 14,
+      "viewport": {
+        "x": 160,
+        "y": 110,
+        "z": 0.65
+      }
+    }
+  }
+}

@@ -4,6 +4,7 @@ import {
   Plus,
   Search,
   Upload,
+  Download,
   Copy,
   Trash2,
   Pencil,
@@ -12,6 +13,7 @@ import {
   Settings,
   RefreshCw,
 } from 'lucide-vue-next';
+import { apiClient } from '@/api/client';
 import { useProjectsStore } from '@/stores/projects';
 import { useCanvasStore } from '@/stores/canvas';
 import type { CanvasSnapshot, PresetTemplate, ProjectSummary } from '@/types/canvas';
@@ -97,6 +99,28 @@ async function handleDelete(project: ProjectSummary) {
   }
 }
 
+function handleExportWorkspace() {
+  const url = apiClient.exportWorkspaceZipUrl(true);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'rh-canvas-migration.zip';
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  canvasStore.showToast('正在一键打包全部画布、本地素材与 API 配置…');
+}
+
+function handleExportSingle(project: ProjectSummary) {
+  const url = apiClient.exportProjectZipUrl(project.id);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `${project.name || 'canvas'}.zip`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  canvasStore.showToast(`正在打包导出「${project.name}」…`);
+}
+
 async function handleImportFile(event: Event) {
   const input = event.target as HTMLInputElement;
   const file = input.files?.[0];
@@ -104,16 +128,32 @@ async function handleImportFile(event: Event) {
   if (!file) return;
   try {
     if (file.name.toLowerCase().endsWith('.zip') || file.type === 'application/zip' || file.type === 'application/x-zip-compressed') {
-      const { project, importedAssets } = await projectsStore.importProjectZip(file);
-      canvasStore.loadSnapshot(project.snapshot);
-      canvasStore.showToast(
-        importedAssets > 0
-          ? `已导入画布「${project.name}」（还原 ${importedAssets} 份素材）`
-          : `已导入画布「${project.name}」`,
-      );
+      const res = await projectsStore.importProjectZip(file);
+      if (res.mode === 'workspace') {
+        const total = (res.imported_projects || 0) + (res.updated_projects || 0);
+        const parts = [`${total} 个画布`, `${res.imported_assets || 0} 份素材`];
+        if (res.restored_settings) parts.push('API 与渠道配置');
+        canvasStore.showToast(`一键迁移导入成功：已还原 ${parts.join('、')}`);
+        return;
+      }
+      if (res.project) {
+        canvasStore.loadSnapshot(res.project.snapshot);
+        canvasStore.showToast(
+          res.imported_assets > 0
+            ? `已导入画布「${res.project.name}」（还原 ${res.imported_assets} 份素材）`
+            : `已导入画布「${res.project.name}」`,
+        );
+      }
       return;
     }
     const raw = JSON.parse(await file.text());
+    if (raw && (raw.format === 'rh-canvas-settings' || (raw.video_provider && !raw.canvas && !raw.snapshot && !raw.cards))) {
+      const cfg = raw.settings || raw;
+      await apiClient.saveConfig(cfg);
+      await projectsStore.checkHealth();
+      canvasStore.showToast('已一键导入 API 与渠道配置');
+      return;
+    }
     let snapshot: CanvasSnapshot;
     let name = file.name.replace(/\.json$/i, '');
     if (raw.snapshot?.canvas?.cards) {
@@ -130,7 +170,7 @@ async function handleImportFile(event: Event) {
         canvas: { cards: raw.cards, seq: raw.cards.length + 1, viewport: raw.viewport || { x: 60, y: 60, z: 0.9 } },
       };
     } else {
-      throw new Error('JSON 格式不兼容，缺少 canvas.cards 字段');
+      throw new Error('JSON 格式不兼容，缺少 canvas.cards 或配置字段');
     }
     const project = await projectsStore.importProjectJson(name, snapshot);
     canvasStore.loadSnapshot(project.snapshot);
@@ -183,9 +223,13 @@ function formatTime(iso: string) {
           <Settings :size="15" />
           设置
         </button>
-        <button class="btn" type="button" @click="fileInput?.click()">
+        <button class="btn" type="button" title="一键打包全部画布、本地素材与 API 配置用于迁移" @click="handleExportWorkspace">
+          <Download :size="15" />
+          一键导出配置
+        </button>
+        <button class="btn" type="button" title="支持迁移包 ZIP、单画布 ZIP/JSON 或 API 配置 JSON" @click="fileInput?.click()">
           <Upload :size="15" />
-          导入 ZIP / JSON
+          一键导入配置
         </button>
         <input ref="fileInput" type="file" accept=".zip,.json,application/zip,application/json" hidden @change="handleImportFile" />
         <button class="btn primary" type="button" :disabled="busyId !== null" @click="handleCreateBlank">
@@ -308,6 +352,9 @@ function formatTime(iso: string) {
                 <small>{{ proj.node_count }} 个节点</small>
               </div>
               <div class="proj-actions" @click.stop>
+                <button class="btn icon" title="导出画布 ZIP（含素材）" type="button" @click="handleExportSingle(proj)">
+                  <Download :size="13" />
+                </button>
                 <button class="btn icon" title="重命名" type="button" @click="handleRename(proj)">
                   <Pencil :size="13" />
                 </button>

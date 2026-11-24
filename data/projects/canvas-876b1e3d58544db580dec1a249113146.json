@@ -1,0 +1,219 @@
+{
+  "schema_version": 1,
+  "id": "canvas-876b1e3d58544db580dec1a249113146",
+  "name": "LibTV 复刻 · Group 7 精简版",
+  "created_at": "2026-11-24T15:03:52.369895+00:00",
+  "updated_at": "2026-11-24T15:13:03.470495+00:00",
+  "node_count": 7,
+  "snapshot": {
+    "format": "rh-canvas",
+    "version": 1,
+    "exportedAt": "2026-11-24T15:13:03.470495+00:00",
+    "schemaVersion": 1,
+    "canvas": {
+      "cards": [
+        {
+          "id": "g7-3-v-3YGxDivWHy",
+          "type": "source",
+          "mediaKind": "video",
+          "name": "原动作参考",
+          "x": 60,
+          "y": 20,
+          "width": 148,
+          "height": 148,
+          "refs": [],
+          "results": [
+            {
+              "kind": "video",
+              "label": "原动作参考",
+              "name": "libtv-g7-v-3YGxDivWHy.mp4",
+              "url": "/api/assets/input/libtv-g7-v-3YGxDivWHy.mp4"
+            }
+          ],
+          "activeResultIndex": 0,
+          "status": "done",
+          "selected": false
+        },
+        {
+          "id": "g7-4-a-5wFe3hSsbs",
+          "type": "source",
+          "mediaKind": "audio",
+          "name": "背景音乐",
+          "x": 224,
+          "y": 20,
+          "width": 156,
+          "height": 100,
+          "refs": [],
+          "results": [
+            {
+              "kind": "audio",
+              "label": "背景音乐",
+              "name": "libtv-g7-a-5wFe3hSsbs.mp3",
+              "url": "/api/assets/input/libtv-g7-a-5wFe3hSsbs.mp3"
+            }
+          ],
+          "activeResultIndex": 0,
+          "status": "done",
+          "selected": false
+        },
+        {
+          "id": "g7-7-v-X4uvT6Zkkz",
+          "type": "source",
+          "mediaKind": "video",
+          "name": "深度动作参考",
+          "x": 388,
+          "y": 20,
+          "width": 148,
+          "height": 148,
+          "refs": [],
+          "results": [
+            {
+              "kind": "video",
+              "label": "深度动作参考",
+              "name": "libtv-g7-v-X4uvT6Zkkz.mp4",
+              "url": "/api/assets/input/libtv-g7-v-X4uvT6Zkkz.mp4"
+            }
+          ],
+          "activeResultIndex": 0,
+          "status": "done",
+          "selected": false
+        },
+        {
+          "id": "g7-5-i-aqVkEOECE6",
+          "type": "source",
+          "mediaKind": "image",
+          "name": "藏族男子人物参考",
+          "x": 60,
+          "y": 212,
+          "width": 148,
+          "height": 198,
+          "refs": [],
+          "results": [
+            {
+              "kind": "image",
+              "label": "藏族男子人物参考",
+              "name": "libtv-g7-i-aqVkEOECE6.png",
+              "url": "/api/assets/input/libtv-g7-i-aqVkEOECE6.png"
+            }
+          ],
+          "activeResultIndex": 0,
+          "status": "done",
+          "selected": false
+        },
+        {
+          "id": "g7-6-i-LWnuFY34J1",
+          "type": "source",
+          "mediaKind": "image",
+          "name": "九寨沟场景",
+          "x": 224,
+          "y": 212,
+          "width": 148,
+          "height": 198,
+          "refs": [],
+          "results": [
+            {
+              "kind": "image",
+              "label": "九寨沟场景",
+              "name": "libtv-g7-i-LWnuFY34J1.png",
+              "url": "/api/assets/input/libtv-g7-i-LWnuFY34J1.png"
+            }
+          ],
+          "activeResultIndex": 0,
+          "status": "done",
+          "selected": false
+        },
+        {
+          "id": "g7-1-v-edwnfjZKka",
+          "type": "video",
+          "name": "Seedance 2.5 · 原动作版",
+          "x": 800,
+          "y": 160,
+          "width": 210,
+          "height": 290,
+          "model": "tensor:SEEDANCE_2_5_FLASH",
+          "videoMode": "omni",
+          "aspect": "9:16",
+          "resolution": "720p",
+          "duration": 14,
+          "generateAudio": true,
+          "batchCount": 1,
+          "quality": "standard",
+          "stylePreset": "古风奇幻",
+          "prompt": "复刻视频 @视频1  中的运镜和人物动作，但是整个视频中的人物完全换成 @图片1  的人物，整个场景替换成 @图片2  的九寨沟的场景， @音频1  这个音乐作为整个视频的背景音乐。\n以下为复刻的替换要求：\n竖屏 9:16，电影感时尚大片。主角为 @图片1  中的藏族男子：短发、佩戴绿松石银片头饰与绿松石红珠耳坠，身穿米白与黑色相间、棕色毛领披肩、红蓝白纹样的民族长袍；人物面部与服饰严格以 @图片1  为准，保持同一张脸、同一套服装。场景为 @图片2  的九寨沟：碧蓝钙化彩池、镜面湖泊倒映五彩秋林、远处雪山与云雾、木质栈道。秋日晴光，湖水 Tiffany 蓝、彩林红黄橙紫、雪山亮白，色彩通透高饱和。\n镜头 1 ｜ 0.0–2.4s 分身入场\n@图片1  藏族男子在 @图片2  九寨沟的木质栈道上向前行走，前景主体清晰、毛领与长袍随步伐摆动；画面中同时出现 3 个同人物的缩小分身与 1 个后方高大人影分身，分布在左后、右后与正后方同步行走。低角度跟拍，镜头随人物快速横移甩动，带强烈运动模糊，背景碧蓝彩池与五彩秋林被虚化拖影。节奏凌厉，时尚大片质感。\n\n镜头 2 ｜ 2.4–5.9s 环绕摆拍\n@图片1  藏族男子独自站在 @图片2  九寨沟镜面湖边的观景台，先正面站定、双手自然垂放，再侧身望向湖面，最后转回面向镜头；人物始终居中。中景与近景交替，镜头围绕人物旋转，穿插径向运动模糊，背景彩林、雪山与湖面线条形成放射状拖影，突出人物。冷调秋日柔光，快切不同站位造型，每个镜头以模糊转场衔接。\n\n镜头 3 ｜ 5.9–8.3s 白闪转场（不换装，改姿态）\n强曝光白闪过渡后， @图片1  藏族男子仍穿同一套民族服饰，站在 @图片2  九寨沟钙化彩池边，转头看向侧方，随后正面站立、一手轻扶毛领、另一手自然垂落看向镜头。中近景低角度仰拍，镜头围绕人物移动切换角度，背景五彩秋林与雪山倾斜构图，画面带胶片颗粒与轻微 RGB 色边错位，冷青色调、薄雾感，节奏明快。\n\n镜头 4 ｜ 8.3–11.3s 抱臂 · 走近 · 抬腿造型\n@图片1  藏族男子在 @图片2  九寨沟栈道广场上摆拍：先是双臂交叉站定，随后从远处大步向前走近镜头，再单腿抬起、一手搭在头饰旁做造型，长袍下摆与毛领随动作扬起。镜头先中景固定，再快速拉远又推近，伴随径向运动模糊；人物始终为视觉中心，碧蓝湖面、彩池与栈道透视线指向人物，浅色地面反光柔和，快切 pose、模糊衔接。\n\n镜头 5 ｜ 11.3–13.4s 低角度跟走 · 定格收尾\n@图片1  藏族男子一手插在长袍侧、另一手自然摆动，沿 @图片2  九寨沟临湖木质栈道大步向前行走，两侧五彩秋林形成夹道透视、栈道线条引导视线至人物，远处是碧蓝镜面湖与雪山云雾。低角度中景平稳跟拍，先以模糊特效转场，最后镜头缓缓停在人物迈步、抬眼看向镜头的定格帧。冷调秋日晴光，黑白色长袍与蓝绿湖景鲜明对比，舒展开阔收尾。",
+          "localMedia": [],
+          "refs": [
+            {
+              "from": "g7-5-i-aqVkEOECE6",
+              "kind": "image",
+              "label": "藏族男子人物参考"
+            },
+            {
+              "from": "g7-6-i-LWnuFY34J1",
+              "kind": "image",
+              "label": "九寨沟场景"
+            },
+            {
+              "from": "g7-3-v-3YGxDivWHy",
+              "kind": "video",
+              "label": "原动作参考"
+            },
+            {
+              "from": "g7-4-a-5wFe3hSsbs",
+              "kind": "audio",
+              "label": "背景音乐"
+            }
+          ],
+          "results": [],
+          "status": "idle",
+          "selected": false
+        },
+        {
+          "id": "g7-2-v-CthLnSgoGB",
+          "type": "video",
+          "name": "Seedance 2.5 · 深度版",
+          "x": 800,
+          "y": 500,
+          "width": 210,
+          "height": 290,
+          "model": "tensor:SEEDANCE_2_5_FLASH",
+          "videoMode": "omni",
+          "aspect": "9:16",
+          "resolution": "720p",
+          "duration": 14,
+          "generateAudio": false,
+          "batchCount": 1,
+          "quality": "standard",
+          "stylePreset": "古风奇幻",
+          "prompt": "复刻视频 @视频1  中的运镜和人物动作，但是整个视频中的人物完全换成 @图片1  的人物，整个场景替换成 @图片2  的九寨沟的场景。\n以下为复刻的替换要求：\n竖屏 9:16，电影感时尚大片。主角为 @图片1  中的藏族男子：短发、佩戴绿松石银片头饰与绿松石红珠耳坠，身穿米白与黑色相间、棕色毛领披肩、红蓝白纹样的民族长袍；人物面部与服饰严格以 @图片1  为准，保持同一张脸、同一套服装。场景为 @图片2  的九寨沟：碧蓝钙化彩池、镜面湖泊倒映五彩秋林、远处雪山与云雾、木质栈道。秋日晴光，湖水 Tiffany 蓝、彩林红黄橙紫、雪山亮白，色彩通透高饱和。\n镜头 1 ｜ 0.0–2.4s 分身入场\n@图片1  藏族男子在 @图片2  九寨沟的木质栈道上向前行走，前景主体清晰、毛领与长袍随步伐摆动；画面中同时出现 3 个同人物的缩小分身与 1 个后方高大人影分身，分布在左后、右后与正后方同步行走。低角度跟拍，镜头随人物快速横移甩动，带强烈运动模糊，背景碧蓝彩池与五彩秋林被虚化拖影。节奏凌厉，时尚大片质感。\n\n镜头 2 ｜ 2.4–5.9s 环绕摆拍\n@图片1  藏族男子独自站在 @图片2  九寨沟镜面湖边的观景台，先正面站定、双手自然垂放，再侧身望向湖面，最后转回面向镜头；人物始终居中。中景与近景交替，镜头围绕人物旋转，穿插径向运动模糊，背景彩林、雪山与湖面线条形成放射状拖影，突出人物。冷调秋日柔光，快切不同站位造型，每个镜头以模糊转场衔接。\n\n镜头 3 ｜ 5.9–8.3s 白闪转场（不换装，改姿态）\n强曝光白闪过渡后， @图片1  藏族男子仍穿同一套民族服饰，站在 @图片2  九寨沟钙化彩池边，转头看向侧方，随后正面站立、一手轻扶毛领、另一手自然垂落看向镜头。中近景低角度仰拍，镜头围绕人物移动切换角度，背景五彩秋林与雪山倾斜构图，画面带胶片颗粒与轻微 RGB 色边错位，冷青色调、薄雾感，节奏明快。\n\n镜头 4 ｜ 8.3–11.3s 抱臂 · 走近 · 抬腿造型\n@图片1  藏族男子在 @图片2  九寨沟栈道广场上摆拍：先是双臂交叉站定，随后从远处大步向前走近镜头，再单腿抬起、一手搭在头饰旁做造型，长袍下摆与毛领随动作扬起。镜头先中景固定，再快速拉远又推近，伴随径向运动模糊；人物始终为视觉中心，碧蓝湖面、彩池与栈道透视线指向人物，浅色地面反光柔和，快切 pose、模糊衔接。\n\n镜头 5 ｜ 11.3–13.4s 低角度跟走 · 定格收尾\n@图片1  藏族男子一手插在长袍侧、另一手自然摆动，沿 @图片2  九寨沟临湖木质栈道大步向前行走，两侧五彩秋林形成夹道透视、栈道线条引导视线至人物，远处是碧蓝镜面湖与雪山云雾。低角度中景平稳跟拍，先以模糊特效转场，最后镜头缓缓停在人物迈步、抬眼看向镜头的定格帧。冷调秋日晴光，黑白色长袍与蓝绿湖景鲜明对比，舒展开阔收尾。",
+          "localMedia": [],
+          "refs": [
+            {
+              "from": "g7-5-i-aqVkEOECE6",
+              "kind": "image",
+              "label": "藏族男子人物参考"
+            },
+            {
+              "from": "g7-6-i-LWnuFY34J1",
+              "kind": "image",
+              "label": "九寨沟场景"
+            },
+            {
+              "from": "g7-7-v-X4uvT6Zkkz",
+              "kind": "video",
+              "label": "深度动作参考"
+            }
+          ],
+          "results": [],
+          "status": "idle",
+          "selected": false
+        }
+      ],
+      "seq": 8,
+      "viewport": {
+        "x": 160,
+        "y": 110,
+        "z": 0.65
+      }
+    }
+  }
+}

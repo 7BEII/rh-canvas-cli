@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
-import { X, RefreshCw, Download, Play, Film, Trash2 } from 'lucide-vue-next';
+import { X, RefreshCw, Download, Play, Film, Trash2, Copy, Check } from 'lucide-vue-next';
 import { apiClient } from '@/api/client';
 import { useCanvasStore } from '@/stores/canvas';
 
@@ -24,6 +24,46 @@ const loading = ref(false);
 const outputs = ref<OutputItem[]>([]);
 const previewItem = ref<OutputItem | null>(null);
 const ctxMenu = ref<{ x: number; y: number; item: OutputItem } | null>(null);
+const copiedTaskId = ref<string | null>(null);
+
+async function copyText(text: string) {
+  if (navigator.clipboard?.writeText) {
+    try {
+      await navigator.clipboard.writeText(text);
+      return true;
+    } catch {
+      // fallback below
+    }
+  }
+  try {
+    const ta = document.createElement('textarea');
+    ta.value = text;
+    ta.style.position = 'fixed';
+    ta.style.opacity = '0';
+    document.body.appendChild(ta);
+    ta.select();
+    const ok = document.execCommand('copy');
+    document.body.removeChild(ta);
+    return ok;
+  } catch {
+    return false;
+  }
+}
+
+async function copyTaskMessage(task: { id: string; message: string; status: string }) {
+  const raw = String(task.message || '').trim();
+  if (!raw) return;
+  const ok = await copyText(raw);
+  if (ok) {
+    copiedTaskId.value = task.id;
+    canvas.showToast(task.status === 'error' ? '已复制原始报错信息' : '已复制日志内容');
+    window.setTimeout(() => {
+      if (copiedTaskId.value === task.id) copiedTaskId.value = null;
+    }, 1800);
+  } else {
+    canvas.showToast('复制失败，请手动选中复制');
+  }
+}
 
 // Only show real generated output videos (newest first)
 const videoOutputs = computed(() => outputs.value.filter((item) => item.kind === 'video'));
@@ -166,7 +206,21 @@ onBeforeUnmount(() => {
       <div v-for="task in canvas.tasks" :key="task.id" class="task-row" :class="task.status">
         <div class="task-top">
           <b>{{ task.node_name }}</b>
-          <span class="state">{{ task.status === 'done' ? '完成' : task.status === 'error' ? '失败' : '运行中' }}</span>
+          <div class="task-top-right">
+            <button
+              v-if="task.message"
+              type="button"
+              class="copy-log-btn"
+              :class="{ copied: copiedTaskId === task.id }"
+              title="复制原始信息"
+              @click.stop="copyTaskMessage(task)"
+            >
+              <Check v-if="copiedTaskId === task.id" :size="11" />
+              <Copy v-else :size="11" />
+              <span>{{ copiedTaskId === task.id ? '已复制' : 'Copy' }}</span>
+            </button>
+            <span class="state">{{ task.status === 'done' ? '完成' : task.status === 'error' ? '失败' : '运行中' }}</span>
+          </div>
         </div>
         <p>{{ task.message }}</p>
         <div class="task-meta">
@@ -607,6 +661,40 @@ onBeforeUnmount(() => {
   gap: 8px;
 }
 
+.task-top-right {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.copy-log-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 2px 7px;
+  border-radius: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: rgba(255, 255, 255, 0.06);
+  color: rgba(255, 255, 255, 0.78);
+  font-size: 11px;
+  line-height: 1.3;
+  cursor: pointer;
+  transition: background 0.14s ease, border-color 0.14s ease, color 0.14s ease;
+}
+
+.copy-log-btn:hover {
+  background: rgba(255, 255, 255, 0.14);
+  border-color: rgba(255, 255, 255, 0.28);
+  color: #ffffff;
+}
+
+.copy-log-btn.copied {
+  border-color: rgba(204, 255, 0, 0.55);
+  background: rgba(204, 255, 0, 0.14);
+  color: var(--accent);
+}
+
 .state {
   font-size: 11px;
   color: var(--accent);
@@ -621,6 +709,7 @@ onBeforeUnmount(() => {
   font-size: 12px;
   color: var(--muted);
   word-break: break-word;
+  user-select: text;
 }
 
 .task-meta {

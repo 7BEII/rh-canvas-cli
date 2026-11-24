@@ -1,0 +1,272 @@
+{
+  "schema_version": 1,
+  "id": "canvas-cc6789ead4664ccd8ee0badf3b08c0f8",
+  "name": "LibTV 复刻 · Group 8 精简版",
+  "created_at": "2026-11-24T15:03:52.574701+00:00",
+  "updated_at": "2026-11-24T15:13:03.471498+00:00",
+  "node_count": 10,
+  "snapshot": {
+    "format": "rh-canvas",
+    "version": 1,
+    "exportedAt": "2026-11-24T15:13:03.471498+00:00",
+    "schemaVersion": 1,
+    "canvas": {
+      "cards": [
+        {
+          "id": "g8-1-i-0oPpBFrKoR",
+          "type": "source",
+          "mediaKind": "image",
+          "name": "蓝衣女子三视图",
+          "x": 60,
+          "y": 20,
+          "width": 156,
+          "height": 92,
+          "refs": [],
+          "results": [
+            {
+              "kind": "image",
+              "label": "蓝衣女子三视图",
+              "name": "libtv-g8-i-0oPpBFrKoR.png",
+              "url": "/api/assets/input/libtv-g8-i-0oPpBFrKoR.png"
+            }
+          ],
+          "activeResultIndex": 0,
+          "status": "done",
+          "selected": false
+        },
+        {
+          "id": "g8-2-i-fL1y91VrUO",
+          "type": "source",
+          "mediaKind": "image",
+          "name": "粉衣女子三视图",
+          "x": 236,
+          "y": 20,
+          "width": 156,
+          "height": 92,
+          "refs": [],
+          "results": [
+            {
+              "kind": "image",
+              "label": "粉衣女子三视图",
+              "name": "libtv-g8-i-fL1y91VrUO.png",
+              "url": "/api/assets/input/libtv-g8-i-fL1y91VrUO.png"
+            }
+          ],
+          "activeResultIndex": 0,
+          "status": "done",
+          "selected": false
+        },
+        {
+          "id": "g8-4-i-UOfe8Yz3CP",
+          "type": "source",
+          "mediaKind": "image",
+          "name": "蓝衣女子·人脸参考",
+          "x": 60,
+          "y": 142,
+          "width": 148,
+          "height": 148,
+          "refs": [],
+          "results": [
+            {
+              "kind": "image",
+              "label": "蓝衣女子·人脸参考",
+              "name": "libtv-g8-i-UOfe8Yz3CP.png",
+              "url": "/api/assets/input/libtv-g8-i-UOfe8Yz3CP.png"
+            }
+          ],
+          "activeResultIndex": 0,
+          "status": "done",
+          "selected": false
+        },
+        {
+          "id": "g8-5-i-iRKp0xoM2K",
+          "type": "source",
+          "mediaKind": "image",
+          "name": "蓝衣女子·造型参考",
+          "x": 224,
+          "y": 142,
+          "width": 148,
+          "height": 148,
+          "refs": [],
+          "results": [
+            {
+              "kind": "image",
+              "label": "蓝衣女子·造型参考",
+              "name": "libtv-g8-i-iRKp0xoM2K.png",
+              "url": "/api/assets/input/libtv-g8-i-iRKp0xoM2K.png"
+            }
+          ],
+          "activeResultIndex": 0,
+          "status": "done",
+          "selected": false
+        },
+        {
+          "id": "g8-6-i-tYhwELLcAj",
+          "type": "source",
+          "mediaKind": "image",
+          "name": "粉衣女子·人脸参考",
+          "x": 388,
+          "y": 142,
+          "width": 148,
+          "height": 148,
+          "refs": [],
+          "results": [
+            {
+              "kind": "image",
+              "label": "粉衣女子·人脸参考",
+              "name": "libtv-g8-i-tYhwELLcAj.jpg",
+              "url": "/api/assets/input/libtv-g8-i-tYhwELLcAj.jpg"
+            }
+          ],
+          "activeResultIndex": 0,
+          "status": "done",
+          "selected": false
+        },
+        {
+          "id": "g8-7-i-Po2asqorTi",
+          "type": "source",
+          "mediaKind": "image",
+          "name": "粉衣女子·造型参考",
+          "x": 552,
+          "y": 142,
+          "width": 148,
+          "height": 148,
+          "refs": [],
+          "results": [
+            {
+              "kind": "image",
+              "label": "粉衣女子·造型参考",
+              "name": "libtv-g8-i-Po2asqorTi.png",
+              "url": "/api/assets/input/libtv-g8-i-Po2asqorTi.png"
+            }
+          ],
+          "activeResultIndex": 0,
+          "status": "done",
+          "selected": false
+        },
+        {
+          "id": "g8-8-v-rNDnSdyZJS",
+          "type": "source",
+          "mediaKind": "video",
+          "name": "深度动作参考",
+          "x": 60,
+          "y": 318,
+          "width": 148,
+          "height": 148,
+          "refs": [],
+          "results": [
+            {
+              "kind": "video",
+              "label": "深度动作参考",
+              "name": "libtv-g8-v-rNDnSdyZJS.mp4",
+              "url": "/api/assets/input/libtv-g8-v-rNDnSdyZJS.mp4"
+            }
+          ],
+          "activeResultIndex": 0,
+          "status": "done",
+          "selected": false
+        },
+        {
+          "id": "g8-9-a-wWI7V0LkrU",
+          "type": "source",
+          "mediaKind": "audio",
+          "name": "背景音乐",
+          "x": 224,
+          "y": 318,
+          "width": 156,
+          "height": 100,
+          "refs": [],
+          "results": [
+            {
+              "kind": "audio",
+              "label": "背景音乐",
+              "name": "libtv-g8-a-wWI7V0LkrU.mp3",
+              "url": "/api/assets/input/libtv-g8-a-wWI7V0LkrU.mp3"
+            }
+          ],
+          "activeResultIndex": 0,
+          "status": "done",
+          "selected": false
+        },
+        {
+          "id": "g8-10-i-c7xlYBxm6b",
+          "type": "source",
+          "mediaKind": "image",
+          "name": "彩池栈道场景",
+          "x": 60,
+          "y": 510,
+          "width": 148,
+          "height": 198,
+          "refs": [],
+          "results": [
+            {
+              "kind": "image",
+              "label": "彩池栈道场景",
+              "name": "libtv-g8-i-c7xlYBxm6b.png",
+              "url": "/api/assets/input/libtv-g8-i-c7xlYBxm6b.png"
+            }
+          ],
+          "activeResultIndex": 0,
+          "status": "done",
+          "selected": false
+        },
+        {
+          "id": "g8-3-v-WKruDQL83A",
+          "type": "video",
+          "name": "视频成片",
+          "x": 800,
+          "y": 160,
+          "width": 210,
+          "height": 290,
+          "model": "tensor:SEEDANCE_2_5_FLASH",
+          "videoMode": "omni",
+          "aspect": "9:16",
+          "resolution": "720p",
+          "duration": 15,
+          "generateAudio": true,
+          "batchCount": 1,
+          "quality": "standard",
+          "stylePreset": "古风奇幻",
+          "prompt": "参考视频 @视频1  深度信息及镜头切换节奏，整体的音乐使用 @音频1  这一段音乐；\n\n @图片2 「蓝衣女子三视图」节点输出的五宫格人物参考图 （人物三视图）为蓝衣女子人物形象，@图片3 「粉衣女子三视图」节点输出的五宫格人物参考图（人物三视图）为粉衣女子人物形象，人物特征以 @图片2 「蓝衣女子三视图」节点输出的五宫格人物参考图 @图片3 「粉衣女子三视图」节点输出的五宫格人物参考图为唯一标准，不可自行更改。\n\n分镜执行（动作/运镜/场景严格参照 @视频1  对应时间段，人物形象严格参照 @图片2 「蓝衣女子三视图」节点输出的五宫格人物参考图 @图片3 「粉衣女子三视图」节点输出的五宫格人物参考图）：\n\n镜头 1 ｜ 0.0–3.2s（3.2s）空镜 · 两人入画驻足\n@视频1  对应画面， @图片2 「蓝衣女子三视图」节点输出的五宫格人物参考图  @图片3 「粉衣女子三视图」节点输出的五宫格人物参考图为人物， @图片1  为这一段场景\n景别/机位：中景，平视，固定机位\n画面：开场空镜展现彩池栈道，@图片3 「粉衣女子三视图」节点输出的五宫格人物参考图粉衣女子从右侧走入、@图片2 「蓝衣女子三视图」节点输出的五宫格人物参考图蓝衣女子跟上，两人停步转身对视\n\n镜头 2 ｜ 3.2–6.2s（3.0s）搭肩说笑\n@视频1  对应画面， @图片2 「蓝衣女子三视图」节点输出的五宫格人物参考图  @图片3 「粉衣女子三视图」节点输出的五宫格人物参考图为人物， @图片1  为这一段场景\n景别/机位：近景，平视，缓慢轻微前推\n画面：两人面对面，@图片3 「粉衣女子三视图」节点输出的五宫格人物参考图粉衣女子抬手搭住@图片2 「蓝衣女子三视图」节点输出的五宫格人物参考图蓝衣女子肩膀，@图片2 「蓝衣女子三视图」节点输出的五宫格人物参考图蓝衣女子笑着抬手、握拳抬起与对方说笑；背景彩池树林虚化\n\n镜头 3 ｜ 6.2–12.0s（5.8s）举手机自拍 · 比耶理鬓\n@视频1  对应画面， @图片2 「蓝衣女子三视图」节点输出的五宫格人物参考图  @图片3 「粉衣女子三视图」节点输出的五宫格人物参考图为人物， @图片1  为这一段场景\n景别/机位：中景过渡到近景，模拟自拍视角逐步拉近\n画面：@图片2 「蓝衣女子三视图」节点输出的五宫格人物参考图蓝衣女子拿出iPhone18手机递出，@图片3 「粉衣女子三视图」节点输出的五宫格人物参考图粉衣女子接过伸长手臂举高自拍，两人靠紧；@图片2 「蓝衣女子三视图」节点输出的五宫格人物参考图蓝衣女子比剪刀手、又帮@图片3 「粉衣女子三视图」节点输出的五宫格人物参考图粉衣女子整理耳边发，凑近镜头换表情\n\n镜头 4 ｜ 12.0–14.6s（2.6s）放下手机 · 弯腰大笑收尾\n@视频1  对应画面， @图片2 「蓝衣女子三视图」节点输出的五宫格人物参考图  @图片3 「粉衣女子三视图」节点输出的五宫格人物参考图为人物， @图片1  为这一段场景\n景别/机位：中景，平视，固定机位\n画面：@图片3 「粉衣女子三视图」节点输出的五宫格人物参考图粉衣女子放下手机垂在身侧，两人对视后同时弯腰大笑，再直起身相视而笑；背景完整重现彩池山林\n\n\n约束： @图片2 「蓝衣女子三视图」节点输出的五宫格人物参考图 @图片3 「粉衣女子三视图」节点输出的五宫格人物参考图中的发色/服装颜色为固定值不可修改；禁止出现与 @图片2 「蓝衣女子三视图」节点输出的五宫格人物参考图@图片3 「粉衣女子三视图」节点输出的五宫格人物参考图 不符的第二种人物形象。",
+          "localMedia": [],
+          "refs": [
+            {
+              "from": "g8-10-i-c7xlYBxm6b",
+              "kind": "image",
+              "label": "彩池栈道场景"
+            },
+            {
+              "from": "g8-1-i-0oPpBFrKoR",
+              "kind": "image",
+              "label": "蓝衣女子三视图"
+            },
+            {
+              "from": "g8-2-i-fL1y91VrUO",
+              "kind": "image",
+              "label": "粉衣女子三视图"
+            },
+            {
+              "from": "g8-8-v-rNDnSdyZJS",
+              "kind": "video",
+              "label": "深度动作参考"
+            },
+            {
+              "from": "g8-9-a-wWI7V0LkrU",
+              "kind": "audio",
+              "label": "背景音乐"
+            }
+          ],
+          "results": [],
+          "status": "idle",
+          "selected": false
+        }
+      ],
+      "seq": 11,
+      "viewport": {
+        "x": 160,
+        "y": 110,
+        "z": 0.65
+      }
+    }
+  }
+}

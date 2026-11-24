@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { onMounted, ref } from 'vue';
-import { X, Save, CheckCircle2, Loader2, Sparkles } from 'lucide-vue-next';
+import { X, Save, CheckCircle2, Loader2, Sparkles, Download, Upload } from 'lucide-vue-next';
 import { apiClient } from '@/api/client';
 import { useCanvasStore } from '@/stores/canvas';
 import { useProjectsStore } from '@/stores/projects';
@@ -26,21 +26,94 @@ const tensorBaseUrl = ref('https://openapi.tensorart.me/canvas-openapi');
 const testResult = ref<{ ok: boolean; msg: string } | null>(null);
 const rhTestResult = ref<{ ok: boolean; msg: string } | null>(null);
 const tensorTestResult = ref<{ ok: boolean; msg: string } | null>(null);
+const migrationInput = ref<HTMLInputElement | null>(null);
+const migrating = ref(false);
+
+async function loadFromBackend() {
+  const res = await apiClient.getConfig();
+  provider.value = (res.config.video_provider as 'runninghub' | 'ark' | 'tensor') || 'tensor';
+  rhApiKey.value = res.config.runninghub_api_key || '';
+  arkApiKey.value = res.config.ark_api_key || '';
+  volcAk.value = res.config.volc_ak || '';
+  volcSk.value = res.config.volc_sk || '';
+  tensorApiKey.value = res.config.tensor_api_key || '';
+  tensorBaseUrl.value = res.config.tensor_base_url || 'https://openapi.tensorart.me/canvas-openapi';
+}
 
 onMounted(async () => {
   try {
-    const res = await apiClient.getConfig();
-    provider.value = (res.config.video_provider as 'runninghub' | 'ark' | 'tensor') || 'tensor';
-    rhApiKey.value = res.config.runninghub_api_key || '';
-    arkApiKey.value = res.config.ark_api_key || '';
-    volcAk.value = res.config.volc_ak || '';
-    volcSk.value = res.config.volc_sk || '';
-    tensorApiKey.value = res.config.tensor_api_key || '';
-    tensorBaseUrl.value = res.config.tensor_base_url || 'https://openapi.tensorart.me/canvas-openapi';
+    await loadFromBackend();
   } catch (err: any) {
     canvas.showToast(err?.message || '读取配置失败');
   }
 });
+
+function handleExportWorkspaceZip() {
+  const a = document.createElement('a');
+  a.href = apiClient.exportWorkspaceZipUrl(true);
+  a.download = 'rh-canvas-migration.zip';
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  canvas.showToast('正在一键打包全部画布、素材与 API 配置…');
+}
+
+async function handleExportSettingsJson() {
+  try {
+    const res = await apiClient.getConfig();
+    const { output_dir: _omit, ...portable } = res.config as any;
+    const payload = {
+      schema_version: 1,
+      format: 'rh-canvas-settings',
+      exported_at: new Date().toISOString(),
+      settings: portable,
+    };
+    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `rh-canvas-settings-${new Date().toISOString().slice(0, 10)}.json`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+    canvas.showToast('已导出 API 与渠道配置 JSON');
+  } catch (err: any) {
+    canvas.showToast(`导出失败：${err?.message || '未知错误'}`);
+  }
+}
+
+async function handleImportMigration(event: Event) {
+  const input = event.target as HTMLInputElement;
+  const file = input.files?.[0];
+  input.value = '';
+  if (!file) return;
+  migrating.value = true;
+  try {
+    if (file.name.toLowerCase().endsWith('.zip') || file.type.includes('zip')) {
+      const res = await projects.importProjectZip(file);
+      await loadFromBackend();
+      if (res.mode === 'workspace') {
+        const total = (res.imported_projects || 0) + (res.updated_projects || 0);
+        canvas.showToast(`迁移导入成功：已还原 ${total} 个画布、${res.imported_assets || 0} 份素材与配置`);
+      } else {
+        canvas.showToast(`已导入画布「${res.project?.name || ''}」`);
+      }
+      return;
+    }
+    const raw = JSON.parse(await file.text());
+    const cfg = raw?.settings || raw;
+    if (!cfg || typeof cfg !== 'object') throw new Error('无效的配置 JSON');
+    await apiClient.saveConfig(cfg);
+    await loadFromBackend();
+    await projects.checkHealth();
+    canvas.showToast('已导入 API 与渠道配置');
+  } catch (err: any) {
+    canvas.showToast(`导入失败：${err?.message || '无效文件'}`);
+  } finally {
+    migrating.value = false;
+  }
+}
 
 async function handleTestArk() {
   testing.value = true;
@@ -270,6 +343,26 @@ async function handleSave() {
             </div>
           </div>
         </template>
+
+        <!-- Migration Box -->
+        <div class="builtin-box migration-box">
+          <div class="builtin-title">一键迁移备份（画布 + 素材 + API 配置）</div>
+          <div class="migration-actions">
+            <button type="button" class="btn sm" @click="handleExportWorkspaceZip">
+              <Download :size="13" />
+              导出全部画布+配置 (.zip)
+            </button>
+            <button type="button" class="btn sm" @click="handleExportSettingsJson">
+              <Download :size="13" />
+              仅导出 API 配置 (.json)
+            </button>
+            <button type="button" class="btn sm" :disabled="migrating" @click="migrationInput?.click()">
+              <Upload :size="13" />
+              {{ migrating ? '导入中…' : '导入配置 (.zip / .json)' }}
+            </button>
+            <input ref="migrationInput" type="file" accept=".zip,.json,application/zip,application/json" hidden @change="handleImportMigration" />
+          </div>
+        </div>
       </div>
 
       <footer class="modal-foot">
@@ -467,6 +560,21 @@ async function handleSave() {
   display: flex;
   justify-content: flex-end;
   gap: 8px;
+}
+
+.migration-box {
+  margin-top: 2px;
+}
+
+.migration-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.btn.sm {
+  padding: 6px 10px;
+  font-size: 12px;
 }
 
 .spin {

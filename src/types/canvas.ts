@@ -123,6 +123,14 @@ export interface NodePortSpec {
   label: string;
 }
 
+export type ModelProvider = 'tensor' | 'runninghub' | 'ark' | 'local';
+
+export interface NodeModelOption {
+  id: string;
+  label: string;
+  provider?: ModelProvider;
+}
+
 export interface NodeDefinition {
   type: NodeType;
   title: string;
@@ -134,7 +142,7 @@ export interface NodeDefinition {
   outputs: NodePortSpec[];
   defaultWidth?: number;
   defaultModel?: string;
-  models?: Array<{ id: string; label: string }>;
+  models?: NodeModelOption[];
 }
 
 export interface PresetTemplate {

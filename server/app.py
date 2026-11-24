@@ -13,7 +13,12 @@ from .runninghub_client import RunningHubVideoClient, resolve_rh_base_url, resol
 from .settings_store import SettingsStore
 from .tensor_client import TensorCanvasClient, resolve_tensor_base_url, resolve_tensor_key
 from .workflow_runner import WorkflowRunner
-from .zip_bundle import export_project_zip, import_project_zip
+from .zip_bundle import (
+    export_project_zip,
+    export_workspace_zip,
+    import_project_zip,
+    import_workspace_zip,
+)
 
 ROOT_DIR = Path(__file__).resolve().parent.parent
 DATA_DIR = ROOT_DIR / "data"
@@ -175,17 +180,57 @@ def create_app() -> Flask:
         if file is None:
             return _json_error("缺少上传文件字段 file", 400)
         try:
-            res = import_project_zip(
+            res = import_workspace_zip(
                 file.stream,
                 filename=str(file.filename or "canvas.zip"),
                 projects=projects,
                 assets=assets,
+                settings=settings,
             )
             return jsonify(res), 201
         except (ValueError, SnapshotTooLargeError) as exc:
             return _json_error(exc, 400)
         except Exception as exc:
             return _json_error(f"导入 ZIP 失败：{exc}", 400)
+
+    @app.get("/api/workspace/export-zip")
+    def export_workspace_as_zip():
+        raw_inc = str(request.args.get("include_secrets", "1")).strip().lower()
+        include_secrets = raw_inc not in ("0", "false", "no")
+        try:
+            buf, download_name = export_workspace_zip(
+                projects=projects,
+                assets=assets,
+                settings=settings,
+                include_secrets=include_secrets,
+            )
+            return send_file(
+                buf,
+                mimetype="application/zip",
+                as_attachment=True,
+                download_name=download_name,
+            )
+        except Exception as exc:
+            return _json_error(f"导出全量迁移包失败：{exc}", 400)
+
+    @app.post("/api/workspace/import-zip")
+    def import_workspace_from_zip():
+        file = request.files.get("file")
+        if file is None:
+            return _json_error("缺少上传文件字段 file", 400)
+        try:
+            res = import_workspace_zip(
+                file.stream,
+                filename=str(file.filename or "migration.zip"),
+                projects=projects,
+                assets=assets,
+                settings=settings,
+            )
+            return jsonify(res), 201
+        except (ValueError, SnapshotTooLargeError) as exc:
+            return _json_error(exc, 400)
+        except Exception as exc:
+            return _json_error(f"导入迁移包失败：{exc}", 400)
 
     @app.post("/api/assets/input")
     def upload_input_asset():

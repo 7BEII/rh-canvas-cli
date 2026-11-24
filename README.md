@@ -33,3 +33,9 @@ python -m server.app
 ## JSON 兼容性
 
 本项目 `data/projects/canvas-*.json` 与原 RH 无限画布快照格式兼容，可直接通过首页「导入 JSON」导入既有画布项目，也可随时导出为 JSON 备份。
+
+## 核心能力与近期更新
+
+- **多渠道生图 / 生视频**：支持 **Tensor / 吐司 Canvas OpenAPI**（海外 `openapi.tensorart.me` / 国内 `openapi.tusiart.cn`）、**RunningHub**、**火山方舟（Ark）**；Tensor 渠道会自动将参考图/视频/音频通过 `/v1/workflow/actions` 挂载为云端画布持久节点并绑定 `workflowContext` 引用。
+- **输入素材时长自动兜底（2–15s）**：上传视频/音频入库（`server/asset_store.py`）以及提交 Tensor 生成前（`server/tensor_client.py`）都会自动检测时长——超过 `14.8s` 自动裁切至 `14.8s`，短于 `2.0s` 自动补齐至 `2.1s`，避免触发 Seedance `must be 2–15 seconds long` 报错。
+- **报错原始信息一键 Copy**：画布节点报错浮层（`src/components/CanvasNode.vue`）和右侧「运行日志」抽屉（`src/components/TaskDrawer.vue`）均提供 `Copy` 按钮，支持一键复制完整原始报错文本便于排查。

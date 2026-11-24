@@ -118,7 +118,38 @@ export const apiClient = {
   importProjectZip(file: File) {
     const form = new FormData();
     form.append('file', file);
-    return request<{ success: boolean; project: ProjectRecord; imported_assets: number }>('/projects/import-zip', {
+    return request<{
+      success: boolean;
+      mode?: 'project' | 'workspace';
+      project?: ProjectRecord;
+      projects?: ProjectRecord[];
+      imported_projects?: number;
+      updated_projects?: number;
+      imported_assets: number;
+      restored_settings?: boolean;
+    }>('/projects/import-zip', {
+      method: 'POST',
+      body: form,
+    });
+  },
+
+  exportWorkspaceZipUrl(includeSecrets = true) {
+    return `${API_BASE}/workspace/export-zip?include_secrets=${includeSecrets ? '1' : '0'}`;
+  },
+
+  importWorkspaceZip(file: File) {
+    const form = new FormData();
+    form.append('file', file);
+    return request<{
+      success: boolean;
+      mode: 'project' | 'workspace';
+      project?: ProjectRecord;
+      projects?: ProjectRecord[];
+      imported_projects?: number;
+      updated_projects?: number;
+      imported_assets: number;
+      restored_settings?: boolean;
+    }>('/workspace/import-zip', {
       method: 'POST',
       body: form,
     });

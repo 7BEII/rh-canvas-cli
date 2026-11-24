@@ -1,0 +1,321 @@
+{
+  "schema_version": 1,
+  "id": "canvas-86adcc72973d4e359a4bba20b7a606fa",
+  "name": "LibTV 复刻 · Group 3 精简版",
+  "created_at": "2026-11-24T15:03:51.132703+00:00",
+  "updated_at": "2026-11-24T15:13:03.464372+00:00",
+  "node_count": 12,
+  "snapshot": {
+    "format": "rh-canvas",
+    "version": 1,
+    "exportedAt": "2026-11-24T15:13:03.464372+00:00",
+    "schemaVersion": 1,
+    "canvas": {
+      "cards": [
+        {
+          "id": "g3-1-i-9xC6bgu114",
+          "type": "source",
+          "mediaKind": "image",
+          "name": "女子三视图",
+          "x": 60,
+          "y": 20,
+          "width": 156,
+          "height": 92,
+          "refs": [],
+          "results": [
+            {
+              "kind": "image",
+              "label": "女子三视图",
+              "name": "libtv-g3-i-9xC6bgu114.png",
+              "url": "/api/assets/input/libtv-g3-i-9xC6bgu114.png"
+            }
+          ],
+          "activeResultIndex": 0,
+          "status": "done",
+          "selected": false
+        },
+        {
+          "id": "g3-2-i-ny94b75VSW",
+          "type": "source",
+          "mediaKind": "image",
+          "name": "男孩三视图",
+          "x": 236,
+          "y": 20,
+          "width": 156,
+          "height": 92,
+          "refs": [],
+          "results": [
+            {
+              "kind": "image",
+              "label": "男孩三视图",
+              "name": "libtv-g3-i-ny94b75VSW.png",
+              "url": "/api/assets/input/libtv-g3-i-ny94b75VSW.png"
+            }
+          ],
+          "activeResultIndex": 0,
+          "status": "done",
+          "selected": false
+        },
+        {
+          "id": "g3-4-i-bMe3UYjcZB",
+          "type": "source",
+          "mediaKind": "image",
+          "name": "女子·人脸参考",
+          "x": 60,
+          "y": 142,
+          "width": 148,
+          "height": 148,
+          "refs": [],
+          "results": [
+            {
+              "kind": "image",
+              "label": "女子·人脸参考",
+              "name": "libtv-g3-i-bMe3UYjcZB.jpg",
+              "url": "/api/assets/input/libtv-g3-i-bMe3UYjcZB.jpg"
+            }
+          ],
+          "activeResultIndex": 0,
+          "status": "done",
+          "selected": false
+        },
+        {
+          "id": "g3-5-i-wgptey1F4g",
+          "type": "source",
+          "mediaKind": "image",
+          "name": "女子·造型参考",
+          "x": 224,
+          "y": 142,
+          "width": 148,
+          "height": 148,
+          "refs": [],
+          "results": [
+            {
+              "kind": "image",
+              "label": "女子·造型参考",
+              "name": "libtv-g3-i-wgptey1F4g.png",
+              "url": "/api/assets/input/libtv-g3-i-wgptey1F4g.png"
+            }
+          ],
+          "activeResultIndex": 0,
+          "status": "done",
+          "selected": false
+        },
+        {
+          "id": "g3-6-i-2O7jmZiw06",
+          "type": "source",
+          "mediaKind": "image",
+          "name": "男孩·人脸参考1",
+          "x": 388,
+          "y": 142,
+          "width": 148,
+          "height": 148,
+          "refs": [],
+          "results": [
+            {
+              "kind": "image",
+              "label": "男孩·人脸参考1",
+              "name": "libtv-g3-i-2O7jmZiw06.jpg",
+              "url": "/api/assets/input/libtv-g3-i-2O7jmZiw06.jpg"
+            }
+          ],
+          "activeResultIndex": 0,
+          "status": "done",
+          "selected": false
+        },
+        {
+          "id": "g3-7-i-a5J8IZp3Of",
+          "type": "source",
+          "mediaKind": "image",
+          "name": "男孩·人脸参考2",
+          "x": 552,
+          "y": 142,
+          "width": 148,
+          "height": 148,
+          "refs": [],
+          "results": [
+            {
+              "kind": "image",
+              "label": "男孩·人脸参考2",
+              "name": "libtv-g3-i-a5J8IZp3Of.jpg",
+              "url": "/api/assets/input/libtv-g3-i-a5J8IZp3Of.jpg"
+            }
+          ],
+          "activeResultIndex": 0,
+          "status": "done",
+          "selected": false
+        },
+        {
+          "id": "g3-8-i-Df8QUj1Cli",
+          "type": "source",
+          "mediaKind": "image",
+          "name": "男孩·造型参考",
+          "x": 60,
+          "y": 318,
+          "width": 148,
+          "height": 148,
+          "refs": [],
+          "results": [
+            {
+              "kind": "image",
+              "label": "男孩·造型参考",
+              "name": "libtv-g3-i-Df8QUj1Cli.png",
+              "url": "/api/assets/input/libtv-g3-i-Df8QUj1Cli.png"
+            }
+          ],
+          "activeResultIndex": 0,
+          "status": "done",
+          "selected": false
+        },
+        {
+          "id": "g3-9-v-mwzgpzf0WN",
+          "type": "source",
+          "mediaKind": "video",
+          "name": "深度动作参考",
+          "x": 224,
+          "y": 318,
+          "width": 148,
+          "height": 148,
+          "refs": [],
+          "results": [
+            {
+              "kind": "video",
+              "label": "深度动作参考",
+              "name": "libtv-g3-v-mwzgpzf0WN.mp4",
+              "url": "/api/assets/input/libtv-g3-v-mwzgpzf0WN.mp4"
+            }
+          ],
+          "activeResultIndex": 0,
+          "status": "done",
+          "selected": false
+        },
+        {
+          "id": "g3-10-a-nfufx3maRH",
+          "type": "source",
+          "mediaKind": "audio",
+          "name": "背景音乐",
+          "x": 388,
+          "y": 318,
+          "width": 156,
+          "height": 100,
+          "refs": [],
+          "results": [
+            {
+              "kind": "audio",
+              "label": "背景音乐",
+              "name": "libtv-g3-a-nfufx3maRH.mp3",
+              "url": "/api/assets/input/libtv-g3-a-nfufx3maRH.mp3"
+            }
+          ],
+          "activeResultIndex": 0,
+          "status": "done",
+          "selected": false
+        },
+        {
+          "id": "g3-11-i-Cs3h3u8NUV",
+          "type": "source",
+          "mediaKind": "image",
+          "name": "湖畔栈道场景",
+          "x": 60,
+          "y": 510,
+          "width": 148,
+          "height": 198,
+          "refs": [],
+          "results": [
+            {
+              "kind": "image",
+              "label": "湖畔栈道场景",
+              "name": "libtv-g3-i-Cs3h3u8NUV.png",
+              "url": "/api/assets/input/libtv-g3-i-Cs3h3u8NUV.png"
+            }
+          ],
+          "activeResultIndex": 0,
+          "status": "done",
+          "selected": false
+        },
+        {
+          "id": "g3-12-i-YrRm06YiBA",
+          "type": "source",
+          "mediaKind": "image",
+          "name": "水獭参考",
+          "x": 224,
+          "y": 510,
+          "width": 148,
+          "height": 198,
+          "refs": [],
+          "results": [
+            {
+              "kind": "image",
+              "label": "水獭参考",
+              "name": "libtv-g3-i-YrRm06YiBA.png",
+              "url": "/api/assets/input/libtv-g3-i-YrRm06YiBA.png"
+            }
+          ],
+          "activeResultIndex": 0,
+          "status": "done",
+          "selected": false
+        },
+        {
+          "id": "g3-3-v-yQApNzmB38",
+          "type": "video",
+          "name": "视频成片",
+          "x": 800,
+          "y": 160,
+          "width": 210,
+          "height": 290,
+          "model": "tensor:SEEDANCE_2_5_FLASH",
+          "videoMode": "omni",
+          "aspect": "9:16",
+          "resolution": "720p",
+          "duration": 15,
+          "generateAudio": true,
+          "batchCount": 1,
+          "quality": "standard",
+          "stylePreset": "古风奇幻",
+          "prompt": "参考视频 @视频1  深度信息及镜头切换节奏，整体的音乐使用 @音频1  这一段音乐；\n\n @图片3 「女子三视图」节点输出的五宫格人物参考图 （人物三视图）为女子人物形象，@图片4 「男孩三视图」节点输出的五宫格人物参考图（人物三视图）为男孩人物形象，人物特征以 @图片3 「女子三视图」节点输出的五宫格人物参考图 @图片4 「男孩三视图」节点输出的五宫格人物参考图为唯一标准，不可自行更改。\n\n分镜执行（动作/运镜/场景严格参照 @视频1  对应时间段，人物形象严格参照 @图片3 「女子三视图」节点输出的五宫格人物参考图 @图片4 「男孩三视图」节点输出的五宫格人物参考图）：\n\n镜头 1 ｜ 0.0–4.0s（4.0s）牵手漫步 · 男孩指湖\n@视频1  对应画面， @图片3 「女子三视图」节点输出的五宫格人物参考图  @图片4 「男孩三视图」节点输出的五宫格人物参考图为人物， @图片1  为这一段场景\n景别/机位：中景，起于两人后方，平滑绕移至侧前方（单镜头内位移，无硬切）\n画面：女子@图片3 「女子三视图」节点输出的五宫格人物参考图与男孩@图片4 「男孩三视图」节点输出的五宫格人物参考图牵手沿栈道缓步向前、停步侧身，男孩@图片4 「男孩三视图」节点输出的五宫格人物参考图伸右手指向湖面，两人望向湖景；顶部绿叶与地面落叶框景\n\n镜头 2 ｜ 4.0–7.0s（3.0s）湖中游弋的水獭\n@视频1  对应画面， @图片2  为唯一参考元素的画面\n景别/机位：近景，固定机位，对准水面\n画面：清澈碧蓝湖水中一只水獭头部露出、半没水中向左侧划游，尾鳍摆过水面后游出画面，水下石块清晰，背景秋林虚化\n\n镜头 3 ｜ 7.0–15.0s（8.0s）对视微笑 · 转经筒（缓推特写收尾）\n@视频1  对应画面， @图片3 「女子三视图」节点输出的五宫格人物参考图  @图片4 「男孩三视图」节点输出的五宫格人物参考图为人物， @图片1  为这一段场景\n景别/机位：中景起，持续缓慢向前推至极近面部特写，机位稳定\n画面：男孩@图片4 「男孩三视图」节点输出的五宫格人物参考图双手握转经筒、抬头含笑看向女子@图片3 「女子三视图」节点输出的五宫格人物参考图，女子@图片3 「女子三视图」节点输出的五宫格人物参考图低头温柔注视、手轻扶男孩@图片4 「男孩三视图」节点输出的五宫格人物参考图，两人对视微笑；推近后两张面孔充满画面，背景渐虚\n\n\n约束： @图片3 「女子三视图」节点输出的五宫格人物参考图 @图片4 「男孩三视图」节点输出的五宫格人物参考图中的发色/服装颜色/伞样式为固定值不可修改；禁止出现与 @图片3 「女子三视图」节点输出的五宫格人物参考图@图片4 「男孩三视图」节点输出的五宫格人物参考图 不符的第二种人物形象。",
+          "localMedia": [],
+          "refs": [
+            {
+              "from": "g3-11-i-Cs3h3u8NUV",
+              "kind": "image",
+              "label": "湖畔栈道场景"
+            },
+            {
+              "from": "g3-12-i-YrRm06YiBA",
+              "kind": "image",
+              "label": "水獭参考"
+            },
+            {
+              "from": "g3-1-i-9xC6bgu114",
+              "kind": "image",
+              "label": "女子三视图"
+            },
+            {
+              "from": "g3-2-i-ny94b75VSW",
+              "kind": "image",
+              "label": "男孩三视图"
+            },
+            {
+              "from": "g3-9-v-mwzgpzf0WN",
+              "kind": "video",
+              "label": "深度动作参考"
+            },
+            {
+              "from": "g3-10-a-nfufx3maRH",
+              "kind": "audio",
+              "label": "背景音乐"
+            }
+          ],
+          "results": [],
+          "status": "idle",
+          "selected": false
+        }
+      ],
+      "seq": 13,
+      "viewport": {
+        "x": 160,
+        "y": 110,
+        "z": 0.65
+      }
+    }
+  }
+}

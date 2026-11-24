@@ -668,14 +668,19 @@ class WorkflowRunner:
                 ark_key = resolve_ark_key(config)
                 tensor_key = resolve_tensor_key(config)
                 preferred = str(config.get("video_provider") or "tensor").strip().lower()
-                tensor_only_model = is_tensor_model(model)
 
-                if tensor_only_model and not tensor_key:
-                    raise ValueError(f"模型 {model} 需要通过 Tensor (Forge) 渠道调用，请先在右上角「设置」中填写 Tensor Access Key")
-
-                use_tensor_img = (tensor_only_model and bool(tensor_key)) or (
-                    model != "local-preview" and preferred == "tensor" and bool(tensor_key)
-                ) or (model != "local-preview" and not ark_key and bool(tensor_key))
+                if model != "local-preview" and preferred == "tensor":
+                    if not tensor_key:
+                        raise ValueError("当前渠道为 Tensor (Forge)，请先在右上角「设置」中填写 Tensor Access Key")
+                    use_tensor_img = True
+                elif model != "local-preview" and preferred == "ark":
+                    if not ark_key:
+                        raise ValueError("当前渠道为火山方舟，请先在右上角「设置」中填写火山方舟 API Key")
+                    use_tensor_img = False
+                else:
+                    use_tensor_img = (is_tensor_model(model) and bool(tensor_key)) or (
+                        model != "local-preview" and not ark_key and bool(tensor_key)
+                    )
 
                 if use_tensor_img:
                     tc = TensorCanvasClient(api_key=tensor_key, base_url=resolve_tensor_base_url(config))
@@ -763,20 +768,23 @@ class WorkflowRunner:
                 rh_key = resolve_rh_key(config)
                 tensor_key = resolve_tensor_key(config)
                 preferred = str(config.get("video_provider") or "tensor").strip().lower()
-                tensor_only_model = is_tensor_model(model)
-                rh_only_model = (not tensor_only_model) and any(k in model.lower() for k in ("wan-3", "wan3", "hailuo", "h3"))
-                if tensor_only_model and not tensor_key:
-                    raise ValueError(f"模型 {model} 需要通过 Tensor (Forge) 渠道调用，请先在右上角「设置」中填写 Tensor Access Key")
-                if rh_only_model and not rh_key:
-                    raise ValueError(f"模型 {model} 需要通过 RunningHub 渠道调用，请先在右上角「设置」中填写 RunningHub API Key")
 
-                use_tensor = (tensor_only_model and bool(tensor_key)) or (
-                    not rh_only_model and preferred == "tensor" and bool(tensor_key)
-                ) or (not rh_only_model and not rh_key and not ark_key and bool(tensor_key))
-                use_rh = (not use_tensor) and (
-                    (rh_only_model and bool(rh_key)) or (preferred == "runninghub" and bool(rh_key)) or (not ark_key and bool(rh_key))
-                )
-                use_ark = (not use_tensor) and (not use_rh) and bool(ark_key)
+                if preferred == "tensor":
+                    if not tensor_key:
+                        raise ValueError("当前渠道为 Tensor (Forge)，请先在右上角「设置」中填写 Tensor Access Key")
+                    use_tensor, use_rh, use_ark = True, False, False
+                elif preferred == "runninghub":
+                    if not rh_key:
+                        raise ValueError("当前渠道为 RunningHub，请先在右上角「设置」中填写 RunningHub API Key")
+                    use_tensor, use_rh, use_ark = False, True, False
+                elif preferred == "ark":
+                    if not ark_key:
+                        raise ValueError("当前渠道为火山方舟，请先在右上角「设置」中填写火山方舟 API Key")
+                    use_tensor, use_rh, use_ark = False, False, True
+                else:
+                    use_tensor = bool(tensor_key)
+                    use_rh = (not use_tensor) and bool(rh_key)
+                    use_ark = (not use_tensor) and (not use_rh) and bool(ark_key)
 
                 if use_tensor:
                     full_prompt = combined_prompt
