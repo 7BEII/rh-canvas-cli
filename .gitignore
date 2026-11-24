@@ -9,15 +9,10 @@ __pycache__/
 .venv/
 venv/
 
-# Secrets & local user data (NEVER commit API keys)
+# Secrets (NEVER commit API keys)
 .env
 .env.*
 data/settings.json
-data/projects/
-
-# Ignore ad-hoc uploaded assets, keep bundled preset template assets (rhtv-*)
-data/assets/*
-!data/assets/rhtv-*
 
 # OS & editor files
 .DS_Store

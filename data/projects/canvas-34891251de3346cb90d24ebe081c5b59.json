@@ -1,0 +1,101 @@
+{
+  "schema_version": 1,
+  "id": "canvas-34891251de3346cb90d24ebe081c5b59",
+  "name": "未命名画布",
+  "created_at": "2026-11-24T09:41:12.583115+00:00",
+  "updated_at": "2026-11-24T10:01:31.429787+00:00",
+  "node_count": 2,
+  "snapshot": {
+    "format": "rh-canvas",
+    "version": 1,
+    "exportedAt": "2026-11-24T10:01:31.427Z",
+    "schemaVersion": 1,
+    "canvas": {
+      "cards": [
+        {
+          "activeResultIndex": 1,
+          "aspect": "1:1",
+          "error": "",
+          "id": "n-4-gp4a",
+          "model": "tensor:NANO_BANANA_2",
+          "name": "AI 生图",
+          "needsUpdate": false,
+          "prompt": "一只戴墨镜的柯基犬坐在海边沙滩椅上，阳光明媚，电影感写实摄影",
+          "refs": [],
+          "resolution": "2K",
+          "results": [
+            {
+              "dims": "2560x1440",
+              "kind": "image",
+              "label": "doubao-seedream-5-0-pro-260628 · 火山方舟",
+              "name": "ark-img-327c11bfc7.png",
+              "path": "C:\\pandy\\github\\美图专用-matrix\\rh-canvas-cli\\data\\outputs\\images\\ark-img-327c11bfc7.png",
+              "url": "/api/outputs/images/ark-img-327c11bfc7.png"
+            },
+            {
+              "dims": "2048x2048",
+              "kind": "image",
+              "label": "NANO_BANANA_2 · Tensor",
+              "name": "tensor-nano_banana_2-d568720a.png",
+              "path": "C:\\pandy\\github\\美图专用-matrix\\rh-canvas-cli\\data\\outputs\\images\\tensor-nano_banana_2-d568720a.png",
+              "url": "/api/outputs/images/tensor-nano_banana_2-d568720a.png"
+            }
+          ],
+          "selected": false,
+          "staleReason": "",
+          "status": "done",
+          "type": "image",
+          "width": 240,
+          "x": 60,
+          "y": 60
+        },
+        {
+          "id": "n-6-2czs",
+          "type": "video",
+          "name": "Seedance 2.0 Mini",
+          "x": 60,
+          "y": 278,
+          "width": 210,
+          "height": 280,
+          "selected": true,
+          "prompt": "一只戴墨镜的柯基犬坐在海边沙滩椅上，海浪轻轻拍打沙滩，镜头缓慢推进，阳光明媚",
+          "model": "tensor:SEEDANCE_2_0_FAST",
+          "aspect": "16:9",
+          "resolution": "720p",
+          "duration": 5,
+          "videoMode": "t2v",
+          "generateAudio": true,
+          "quality": "standard",
+          "batchCount": 1,
+          "localMedia": [],
+          "refs": [],
+          "results": [
+            {
+              "kind": "text",
+              "label": "Tensor 任务 1070487761624030573",
+              "text": "{\n  \"provider\": \"tensor\",\n  \"canvas_id\": \"1070487755181536107\",\n  \"session_id\": \"1070487761624030573\",\n  \"model\": \"SEEDANCE_2_0_FAST\",\n  \"mode\": \"t2v\",\n  \"resolution\": \"720p\",\n  \"duration\": 5,\n  \"aspect\": \"16:9\",\n  \"remote_url\": \"https://tensor-sf-sig.7022ae40757f8d53295a57619de9b364.r2.cloudflarestorage.com/workspace/generation/1070468104632464076/c1af22c4-23c2-5a6d-b20d-50a214c42bc7.mp4?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Checksum-Mode=ENABLED&X-Amz-Credential=0bef8a003dc93fc4d7030c9da79271ff%2F20261124%2Fauto%2Fs3%2Faws4_request&X-Amz-Date=20261124T100117Z&X-Amz-Expires=86400&X-Amz-SignedHeaders=host&x-id=GetObject&X-Amz-Signature=a37ebcb3943184df478ee0252c305d1ab974631376d3b9528945eb04b2a68f97\"\n}"
+            },
+            {
+              "kind": "video",
+              "label": "SEEDANCE_2_0_FAST · 720p 5s · Tensor",
+              "name": "tensor-seedance_2_0_fast-f74f0fd8.mp4",
+              "path": "C:\\pandy\\github\\美图专用-matrix\\rh-canvas-cli\\data\\outputs\\videos\\tensor-seedance_2_0_fast-f74f0fd8.mp4",
+              "url": "/api/outputs/videos/tensor-seedance_2_0_fast-f74f0fd8.mp4"
+            }
+          ],
+          "status": "done",
+          "error": "",
+          "activeResultIndex": 1,
+          "needsUpdate": false,
+          "staleReason": ""
+        }
+      ],
+      "seq": 6,
+      "viewport": {
+        "x": 522,
+        "y": 75,
+        "z": 1.1
+      }
+    }
+  }
+}
