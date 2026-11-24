@@ -16,7 +16,7 @@ const saving = ref(false);
 const testing = ref(false);
 const testingRh = ref(false);
 const testingTensor = ref(false);
-const provider = ref<'runninghub' | 'ark' | 'tensor'>('runninghub');
+const provider = ref<'runninghub' | 'ark' | 'tensor'>('tensor');
 const rhApiKey = ref('');
 const arkApiKey = ref('');
 const volcAk = ref('');
@@ -30,7 +30,7 @@ const tensorTestResult = ref<{ ok: boolean; msg: string } | null>(null);
 onMounted(async () => {
   try {
     const res = await apiClient.getConfig();
-    provider.value = (res.config.video_provider as 'runninghub' | 'ark' | 'tensor') || 'runninghub';
+    provider.value = (res.config.video_provider as 'runninghub' | 'ark' | 'tensor') || 'tensor';
     rhApiKey.value = res.config.runninghub_api_key || '';
     arkApiKey.value = res.config.ark_api_key || '';
     volcAk.value = res.config.volc_ak || '';
@@ -136,18 +136,18 @@ async function handleSave() {
           <button
             type="button"
             class="ch-tab"
-            :class="{ active: provider === 'runninghub' }"
-            @click="provider = 'runninghub'"
+            :class="{ active: provider === 'tensor' }"
+            @click="provider = 'tensor'"
           >
-            RunningHub 渠道
+            Tensor (Forge) 优先
           </button>
           <button
             type="button"
             class="ch-tab"
-            :class="{ active: provider === 'tensor' }"
-            @click="provider = 'tensor'"
+            :class="{ active: provider === 'runninghub' }"
+            @click="provider = 'runninghub'"
           >
-            Tensor (Forge) API
+            RunningHub 渠道
           </button>
           <button
             type="button"

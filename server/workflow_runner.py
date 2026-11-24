@@ -646,7 +646,7 @@ class WorkflowRunner:
                 aspect = str(card.get("aspect") or "16:9")
                 ark_key = resolve_ark_key(config)
                 tensor_key = resolve_tensor_key(config)
-                preferred = str(config.get("video_provider") or "runninghub").strip().lower()
+                preferred = str(config.get("video_provider") or "tensor").strip().lower()
                 tensor_only_model = is_tensor_model(model)
 
                 if tensor_only_model and not tensor_key:
@@ -741,7 +741,7 @@ class WorkflowRunner:
                 ark_key = resolve_ark_key(config)
                 rh_key = resolve_rh_key(config)
                 tensor_key = resolve_tensor_key(config)
-                preferred = str(config.get("video_provider") or "runninghub").strip().lower()
+                preferred = str(config.get("video_provider") or "tensor").strip().lower()
                 tensor_only_model = is_tensor_model(model)
                 rh_only_model = (not tensor_only_model) and any(k in model.lower() for k in ("wan-3", "wan3", "hailuo", "h3"))
                 if tensor_only_model and not tensor_key:

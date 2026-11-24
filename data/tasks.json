@@ -1,0 +1,50 @@
+[
+  {
+    "id": "task-7d4a725ddb",
+    "node_id": "n-4-gp4a",
+    "node_name": "AI 生图",
+    "node_type": "image",
+    "status": "done",
+    "message": "火山方舟生图成功（doubao-seedream-5-0-pro-260628）",
+    "provider": "ark:doubao-seedream-5-0-pro-260628",
+    "created_at": "2026-11-24T09:45:54.225834+00:00",
+    "finished_at": "2026-11-24T09:45:54.225834+00:00",
+    "duration_ms": 24414
+  },
+  {
+    "id": "task-281aebcc39",
+    "node_id": "n-4-gp4a",
+    "node_name": "AI 生图",
+    "node_type": "image",
+    "status": "done",
+    "message": "Tensor 生图成功（NANO_BANANA_2）",
+    "provider": "tensor:NANO_BANANA_2",
+    "created_at": "2026-11-24T09:49:35.148776+00:00",
+    "finished_at": "2026-11-24T09:49:35.148776+00:00",
+    "duration_ms": 80115
+  },
+  {
+    "id": "task-9000ec95a9",
+    "node_id": "n-6-2czs",
+    "node_name": "Seedance 2.0 Mini",
+    "node_type": "video",
+    "status": "done",
+    "message": "Tensor 生成成功（SEEDANCE_2_0_FAST · 会话 1070487761624030573）",
+    "provider": "tensor:SEEDANCE_2_0_FAST",
+    "created_at": "2026-11-24T10:01:19.215358+00:00",
+    "finished_at": "2026-11-24T10:01:19.215358+00:00",
+    "duration_ms": 126154
+  },
+  {
+    "id": "task-1ef1e39e24",
+    "node_id": "n-14-zptf",
+    "node_name": "Seedance 2.0 Mini",
+    "node_type": "video",
+    "status": "error",
+    "message": "Tensor 未返回生成产物，请检查账号 Energy 余额或提示词（Agent 回复：[系统提示：响应因 BadRequestError 中断，请重试]）",
+    "provider": "local",
+    "created_at": "2026-11-24T10:04:28.468851+00:00",
+    "finished_at": "2026-11-24T10:04:28.468851+00:00",
+    "duration_ms": 67882
+  }
+]

@@ -346,15 +346,23 @@ class TensorCanvasClient:
         }
 
     def _extract_artifact_urls(self, artifacts: list[dict[str, Any]], expected_kind: str) -> list[str]:
-        urls: list[str] = []
+        preferred: list[str] = []
+        fallback: list[str] = []
 
         def walk(node: Any) -> None:
             if isinstance(node, dict):
-                for key in ("url", "displayUrl", "display_url", "downloadUrl", "download_url", "mediaUrl", "media_url"):
+                # Prefer signed/download URLs (rawUrl on R2 without signature returns 403)
+                for key in ("downloadUrl", "download_url", "signedUrl", "signed_url"):
                     val = node.get(key)
                     if isinstance(val, str) and val.startswith(("http://", "https://")):
-                        urls.append(val)
-                for v in node.values():
+                        preferred.append(val)
+                for key in ("displayUrl", "display_url", "mediaUrl", "media_url", "url"):
+                    val = node.get(key)
+                    if isinstance(val, str) and val.startswith(("http://", "https://")):
+                        fallback.append(val)
+                for k, v in node.items():
+                    if k in ("rawUrl", "raw_url"):
+                        continue
                     if isinstance(v, (dict, list)):
                         walk(v)
             elif isinstance(node, list):
@@ -364,13 +372,78 @@ class TensorCanvasClient:
         for art in artifacts:
             walk(art)
 
-        # Deduplicate preserving order
-        dedup = list(dict.fromkeys(urls))
+        dedup = list(dict.fromkeys([*preferred, *fallback]))
         if expected_kind == "video":
             vid = [u for u in dedup if any(ext in u.lower().split("?")[0] for ext in (".mp4", ".mov", ".webm"))]
             return vid or dedup
         img = [u for u in dedup if any(ext in u.lower().split("?")[0] for ext in (".png", ".jpg", ".jpeg", ".webp"))]
         return img or dedup
+
+    def _poll_workflow_output(
+        self,
+        canvas_id: str,
+        expected_kind: str,
+        cancel_event: threading.Event | None = None,
+        timeout_sec: int = 300,
+    ) -> list[str]:
+        """Poll /workflow/graph until generated node finishes and yields signed media URLs."""
+        target_type = expected_kind.upper()
+        deadline = time.monotonic() + timeout_sec
+        saw_node = False
+
+        while time.monotonic() < deadline:
+            if cancel_event and cancel_event.is_set():
+                raise RuntimeError("任务已取消")
+            try:
+                graph = self._post_json("/workflow/graph", {"canvasId": canvas_id}, timeout=20)
+            except Exception:
+                time.sleep(2.5)
+                continue
+
+            nodes = (graph.get("workflow") or {}).get("nodes") or []
+            gen_nodes = [
+                n for n in nodes
+                if str(n.get("type") or "").upper() == target_type
+                or str(n.get("subType") or "").upper() == "GENERATE"
+            ]
+            if not gen_nodes:
+                if saw_node:
+                    break
+                # Wait briefly in case node creation lags slightly behind SSE end
+                if time.monotonic() > deadline - timeout_sec + 12:
+                    break
+                time.sleep(2.0)
+                continue
+
+            saw_node = True
+            urls: list[str] = []
+            running_count = 0
+            failed_msgs: list[str] = []
+
+            for n in gen_nodes:
+                st = str(n.get("status") or "").upper()
+                if st == "SUCCESS":
+                    gen_data = (n.get("data") or {}).get("generation") or {}
+                    cur_out = gen_data.get("currentOutput")
+                    if isinstance(cur_out, dict):
+                        urls.extend(self._extract_artifact_urls([cur_out], expected_kind))
+                    urls.extend(self._extract_artifact_urls([n.get("data") or {}], expected_kind))
+                elif st in ("RUNNING", "READY", "IDLE", "PENDING", "QUEUED"):
+                    running_count += 1
+                elif st in ("FAILED", "INVALID", "ERROR"):
+                    failed_msgs.append(f"{n.get('title') or n.get('id')}: {st}")
+
+            urls = list(dict.fromkeys(urls))
+            if urls:
+                return urls
+            if running_count == 0:
+                if failed_msgs:
+                    raise RuntimeError(f"Tensor 画布节点生成失败：{'; '.join(failed_msgs)}")
+                break
+
+            time.sleep(2.5)
+
+        return []
 
     def _run_agent_generation(
         self,
@@ -438,7 +511,7 @@ class TensorCanvasClient:
 
         urls = self._extract_artifact_urls(artifacts, expected_kind)
 
-        # Fallback: query /agent/messages or /workflow/graph if SSE didn't include ARTIFACT directly
+        # Fallback: query /agent/messages or poll /workflow/graph (Agent submits async workflow nodes)
         if not urls:
             try:
                 msg_data = self._post_json(
@@ -453,12 +526,15 @@ class TensorCanvasClient:
             except Exception:
                 pass
         if not urls:
-            try:
-                graph = self._post_json("/workflow/graph", {"canvasId": canvas_id}, timeout=20)
-                nodes = (graph.get("workflow") or {}).get("nodes") or []
-                urls.extend(self._extract_artifact_urls(nodes, expected_kind))
-            except Exception:
-                pass
+            poll_timeout = 600 if expected_kind == "video" else 240
+            urls.extend(
+                self._poll_workflow_output(
+                    canvas_id=canvas_id,
+                    expected_kind=expected_kind,
+                    cancel_event=cancel_event,
+                    timeout_sec=poll_timeout,
+                )
+            )
 
         urls = list(dict.fromkeys(urls))
         if not urls:

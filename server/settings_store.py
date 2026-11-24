@@ -18,7 +18,7 @@ class SettingsStore:
 
     def _defaults(self) -> dict[str, Any]:
         return {
-            "video_provider": "runninghub",
+            "video_provider": "tensor",
             "ark_api_key": "",
             "ark_base_url": "https://ark.cn-beijing.volces.com/api/v3",
             "ark_video_model": "",

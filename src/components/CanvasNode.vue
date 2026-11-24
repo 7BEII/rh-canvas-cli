@@ -460,6 +460,37 @@ function onVideoControlsPointerDown(event: PointerEvent) {
         <img :src="activeResult.url || activeResult.dataUrl" :alt="card.name" class="cover-media" draggable="false" />
       </div>
       <div class="generic-body">
+        <div v-if="def.models && def.models.length" class="generic-controls" @pointerdown.stop>
+          <select
+            :value="card.model || def.defaultModel || def.models[0]?.id"
+            class="generic-select"
+            title="选择生成模型"
+            @change="
+              card.model = ($event.target as HTMLSelectElement).value;
+              canvas.scheduleSave();
+            "
+          >
+            <option v-for="m in def.models" :key="m.id" :value="m.id">{{ m.label }}</option>
+          </select>
+          <select
+            v-if="card.type === 'image'"
+            :value="card.aspect || '16:9'"
+            class="generic-select aspect"
+            title="画面比例"
+            @change="
+              card.aspect = ($event.target as HTMLSelectElement).value;
+              canvas.scheduleSave();
+            "
+          >
+            <option value="1:1">1:1</option>
+            <option value="16:9">16:9</option>
+            <option value="9:16">9:16</option>
+            <option value="3:4">3:4</option>
+            <option value="4:3">4:3</option>
+            <option value="2:3">2:3</option>
+            <option value="3:2">3:2</option>
+          </select>
+        </div>
         <textarea
           v-if="card.type === 'prompt' || card.type === 'image' || card.type === 'storyboard'"
           v-model="card.prompt"
@@ -469,6 +500,7 @@ function onVideoControlsPointerDown(event: PointerEvent) {
           @pointerdown.stop
           @change="canvas.scheduleSave()"
         />
+        <div v-if="card.error" class="generic-err">{{ card.error }}</div>
         <div class="generic-foot">
           <span class="chip-tag">
             <Sparkles :size="11" /> {{ def.title }}
@@ -883,6 +915,43 @@ function onVideoControlsPointerDown(event: PointerEvent) {
   display: flex;
   align-items: center;
   justify-content: space-between;
+}
+
+.generic-controls {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.generic-select {
+  flex: 1;
+  min-width: 0;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  padding: 4px 6px;
+  background: var(--panel);
+  color: var(--ink);
+  font-size: 11.5px;
+  outline: none;
+}
+
+.generic-select.aspect {
+  flex: 0 0 64px;
+}
+
+.generic-select:focus {
+  border-color: var(--accent-border);
+}
+
+.generic-err {
+  font-size: 11px;
+  line-height: 1.4;
+  color: #ffb8b8;
+  background: rgba(255, 107, 107, 0.14);
+  border: 1px solid rgba(255, 107, 107, 0.35);
+  border-radius: 7px;
+  padding: 5px 7px;
+  word-break: break-word;
 }
 
 .chip-tag {
