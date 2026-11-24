@@ -58,5 +58,17 @@
     "created_at": "2026-11-24T10:28:46.196898+00:00",
     "finished_at": "2026-11-24T10:28:46.196898+00:00",
     "duration_ms": 58320
+  },
+  {
+    "id": "task-75262c57d8",
+    "node_id": "n-14-zptf",
+    "node_name": "Seedance 2.0 Mini",
+    "node_type": "video",
+    "status": "error",
+    "message": "Tensor 生成失败：code: -1, message:rpc error: code = InvalidArgument desc = Input material 1 no longer exists. Check whether any input material has been removed, then add it again and retry., ErrMessage:",
+    "provider": "local",
+    "created_at": "2026-11-24T13:41:21.954084+00:00",
+    "finished_at": "2026-11-24T13:41:21.954084+00:00",
+    "duration_ms": 156045
   }
 ]

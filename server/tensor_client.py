@@ -476,7 +476,7 @@ class TensorCanvasClient:
             "pinnedModel": pinned_model,
         }
         if input_files:
-            payload["files"] = input_files[:10]
+            payload["files"] = input_files[:12]
 
         res: dict[str, Any] = {}
         for attempt in range(2):
@@ -594,7 +594,7 @@ class TensorCanvasClient:
         on_session_created: Callable[[str, str], None] | None = None,
     ) -> dict[str, Any]:
         input_files: list[dict[str, Any]] = []
-        for asset in ref_assets[:10]:
+        for asset in ref_assets[:12]:
             if asset.get("kind") != "image":
                 continue
             local_p = self._resolve_local_file(asset)
@@ -667,7 +667,7 @@ class TensorCanvasClient:
         input_files: list[dict[str, Any]] = []
         slot_notes: list[str] = []
         if mode != "t2v":
-            for idx, s in enumerate(slots[:10], start=1):
+            for idx, s in enumerate(slots[:12], start=1):
                 local_p = self._resolve_local_file(s)
                 if local_p is not None:
                     input_files.append(self.upload_file(local_p))
