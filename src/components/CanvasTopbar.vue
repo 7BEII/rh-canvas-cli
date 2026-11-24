@@ -11,6 +11,7 @@ import {
   Sparkles,
   ChevronLeft,
 } from 'lucide-vue-next';
+import { apiClient } from '@/api/client';
 import { useCanvasStore } from '@/stores/canvas';
 import { useProjectsStore } from '@/stores/projects';
 
@@ -53,21 +54,21 @@ async function handleBackHome() {
   await projects.refreshList();
 }
 
-function handleExportJson() {
-  const payload = {
-    schema_version: 1,
-    id: projects.activeProjectId,
-    name: projects.activeProjectName,
-    snapshot: canvas.buildSnapshot(),
-  };
-  const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = `${projects.activeProjectName || 'canvas'}.json`;
-  a.click();
-  URL.revokeObjectURL(url);
-  canvas.showToast('已导出画布 JSON');
+async function handleExportZip() {
+  if (!projects.activeProjectId) return;
+  try {
+    await canvas.persistNow(true);
+    const url = apiClient.exportProjectZipUrl(projects.activeProjectId);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${projects.activeProjectName || 'canvas'}.zip`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    canvas.showToast('正在打包下载画布 ZIP（含全部本地素材）…');
+  } catch (err: any) {
+    canvas.showToast(`导出失败：${err?.message || '未知错误'}`);
+  }
 }
 </script>
 
@@ -117,7 +118,7 @@ function handleExportJson() {
       <button class="pill-icon-btn" type="button" title="保存 (Ctrl+S)" @click="canvas.persistNow(false)">
         <Save :size="15" />
       </button>
-      <button class="pill-icon-btn" type="button" title="导出 JSON" @click="handleExportJson">
+      <button class="pill-icon-btn" type="button" title="打包导出画布 ZIP（含素材）" @click="handleExportZip">
         <Download :size="15" />
       </button>
     </div>

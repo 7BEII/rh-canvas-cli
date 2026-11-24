@@ -220,11 +220,11 @@ onBeforeUnmount(() => {
               <span class="lightbox-meta">{{ formatSize(previewItem.size) }} · {{ formatTime(previewItem.created_at) }}</span>
             </div>
             <div class="lightbox-actions">
-              <a :href="previewItem.url" :download="previewItem.name" class="btn">
+              <a :href="previewItem.url" :download="previewItem.name" class="lightbox-dl-btn">
                 <Download :size="14" /> 下载成片
               </a>
-              <button type="button" class="btn icon ghost" @click="previewItem = null">
-                <X :size="17" />
+              <button type="button" class="lightbox-close-btn" title="关闭预览" @click="previewItem = null">
+                <X :size="16" />
               </button>
             </div>
           </header>
@@ -472,7 +472,8 @@ onBeforeUnmount(() => {
   max-height: 92vh;
   border-radius: 18px;
   background: #161618;
-  border: 1px solid var(--line-strong);
+  color: #f5f5f7;
+  border: 1px solid rgba(255, 255, 255, 0.14);
   box-shadow: 0 24px 64px rgba(0, 0, 0, 0.65);
   display: flex;
   flex-direction: column;
@@ -481,7 +482,8 @@ onBeforeUnmount(() => {
 
 .lightbox-head {
   padding: 12px 16px;
-  border-bottom: 1px solid var(--line);
+  background: rgba(255, 255, 255, 0.03);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.09);
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -493,18 +495,26 @@ onBeforeUnmount(() => {
   align-items: center;
   gap: 8px;
   min-width: 0;
+  color: #f5f5f7;
+}
+
+.lightbox-title .lime {
+  color: #ccff00;
+  flex-shrink: 0;
 }
 
 .lightbox-title strong {
   font-size: 13.5px;
+  font-weight: 600;
+  color: #f5f5f7;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 .lightbox-meta {
-  font-size: 11.5px;
-  color: var(--muted);
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.62);
   white-space: nowrap;
 }
 
@@ -513,6 +523,47 @@ onBeforeUnmount(() => {
   align-items: center;
   gap: 8px;
   flex-shrink: 0;
+}
+
+.lightbox-dl-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 32px;
+  padding: 0 13px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  color: #f5f5f7;
+  font-size: 12.5px;
+  font-weight: 500;
+  text-decoration: none;
+  white-space: nowrap;
+  transition: background 0.14s ease, border-color 0.14s ease, color 0.14s ease;
+}
+
+.lightbox-dl-btn:hover {
+  background: rgba(204, 255, 0, 0.14);
+  border-color: rgba(204, 255, 0, 0.55);
+  color: #ccff00;
+}
+
+.lightbox-close-btn {
+  width: 32px;
+  height: 32px;
+  border-radius: 9px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: rgba(255, 255, 255, 0.08);
+  color: rgba(255, 255, 255, 0.86);
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  transition: background 0.14s ease, color 0.14s ease;
+}
+
+.lightbox-close-btn:hover {
+  background: rgba(255, 255, 255, 0.18);
+  color: #ffffff;
 }
 
 .lightbox-stage {

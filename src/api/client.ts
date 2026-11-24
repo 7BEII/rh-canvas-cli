@@ -103,6 +103,19 @@ export const apiClient = {
     });
   },
 
+  exportProjectZipUrl(id: string) {
+    return `${API_BASE}/projects/${encodeURIComponent(id)}/export-zip`;
+  },
+
+  importProjectZip(file: File) {
+    const form = new FormData();
+    form.append('file', file);
+    return request<{ success: boolean; project: ProjectRecord; imported_assets: number }>('/projects/import-zip', {
+      method: 'POST',
+      body: form,
+    });
+  },
+
   uploadAsset(file: File) {
     const form = new FormData();
     form.append('file', file);

@@ -123,6 +123,15 @@ export const useProjectsStore = defineStore('projects', () => {
     return res.project;
   }
 
+  async function importProjectZip(file: File): Promise<{ project: ProjectRecord; importedAssets: number }> {
+    const res = await apiClient.importProjectZip(file);
+    activeProjectId.value = res.project.id;
+    activeProjectName.value = res.project.name;
+    lastSavedAt.value = res.project.updated_at;
+    await refreshList();
+    return { project: res.project, importedAssets: res.imported_assets || 0 };
+  }
+
   async function saveActive(snapshot: CanvasSnapshot, name?: string) {
     if (!activeProjectId.value) return;
     saving.value = true;
@@ -195,6 +204,7 @@ export const useProjectsStore = defineStore('projects', () => {
     createBlankProject,
     createFromTemplate,
     importProjectJson,
+    importProjectZip,
     saveActive,
     renameProject,
     duplicateProject,

@@ -1,0 +1,280 @@
+from __future__ import annotations
+
+import copy
+import io
+import json
+import re
+import zipfile
+from datetime import datetime, timezone
+from pathlib import Path
+from typing import Any
+from urllib.parse import quote, unquote
+from uuid import uuid4
+
+from .asset_store import AssetStore, kind_for_suffix
+from .project_store import ProjectStore
+from .settings_store import SettingsStore
+
+MAX_ZIP_FILES = 500
+MAX_ZIP_TOTAL_BYTES = 1024 * 1024 * 1024  # 1 GB uncompressed safety cap
+
+
+def _safe_filename(raw: str, fallback: str = "file") -> str:
+    stem = re.sub(r"[^a-zA-Z0-9_\-\u4e00-\u9fff.]+", "_", Path(raw).name).strip("._")
+    return stem[:80] if stem else fallback
+
+
+def _resolve_local_media(
+    item: dict[str, Any],
+    assets: AssetStore,
+    output_dir: Path,
+) -> Path | None:
+    """Safely resolve a result/localMedia item to an existing file under data/assets or data/outputs."""
+    url = str(item.get("url") or "").strip()
+    if url.startswith("/api/assets/input/"):
+        name = unquote(url.removeprefix("/api/assets/input/"))
+        try:
+            return assets.resolve_input(name)
+        except Exception:
+            pass
+    elif url.startswith("/api/outputs/"):
+        rel = unquote(url.removeprefix("/api/outputs/"))
+        cand = (output_dir / rel).resolve()
+        if (output_dir in cand.parents or cand == output_dir) and cand.exists() and cand.is_file():
+            return cand
+
+    raw_path = str(item.get("path") or "").strip()
+    if raw_path:
+        try:
+            cand = Path(raw_path).resolve()
+            if cand.exists() and cand.is_file():
+                in_assets = assets.input_dir in cand.parents or cand == assets.input_dir
+                in_outputs = output_dir in cand.parents or cand == output_dir
+                if in_assets or in_outputs:
+                    return cand
+        except Exception:
+            pass
+    return None
+
+
+def export_project_zip(
+    project_id: str,
+    *,
+    projects: ProjectStore,
+    assets: AssetStore,
+    settings: SettingsStore,
+) -> tuple[io.BytesIO, str]:
+    """Bundle a canvas project JSON + all referenced local assets/outputs into a portable ZIP."""
+    record = projects.get(project_id)
+    snapshot = copy.deepcopy(record.get("snapshot") or {})
+    output_dir = settings.output_dir()
+
+    cards = (snapshot.get("canvas") or {}).get("cards")
+    if not isinstance(cards, list):
+        cards = []
+
+    path_to_arc: dict[Path, str] = {}
+    used_arc_names: set[str] = set()
+
+    def register_file(real_path: Path) -> str:
+        resolved = real_path.resolve()
+        if resolved in path_to_arc:
+            return path_to_arc[resolved]
+        base = _safe_filename(resolved.name, "asset.bin")
+        stem = Path(base).stem
+        ext = Path(base).suffix
+        candidate = f"assets/{base}"
+        idx = 2
+        while candidate in used_arc_names:
+            candidate = f"assets/{stem}-{idx}{ext}"
+            idx += 1
+        used_arc_names.add(candidate)
+        path_to_arc[resolved] = candidate
+        return candidate
+
+    def rewrite_list(items: Any) -> None:
+        if not isinstance(items, list):
+            return
+        for item in items:
+            if not isinstance(item, dict):
+                continue
+            real_path = _resolve_local_media(item, assets, output_dir)
+            if real_path is None:
+                continue
+            arc_name = register_file(real_path)
+            item["url"] = f"zip://{arc_name}"
+            item.pop("path", None)
+
+    for card in cards:
+        if not isinstance(card, dict):
+            continue
+        rewrite_list(card.get("results"))
+        rewrite_list(card.get("localMedia"))
+
+    manifest = {
+        "schema_version": 1,
+        "format": "rh-canvas-zip",
+        "id": record.get("id"),
+        "name": record.get("name") or "未命名画布",
+        "exported_at": datetime.now(timezone.utc).isoformat(),
+        "asset_count": len(path_to_arc),
+        "snapshot": snapshot,
+    }
+
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, "w") as zf:
+        zf.writestr(
+            "canvas.json",
+            json.dumps(manifest, ensure_ascii=False, indent=2).encode("utf-8"),
+            compress_type=zipfile.ZIP_DEFLATED,
+        )
+        for real_path, arc_name in path_to_arc.items():
+            # Already-compressed media stored directly for fast packing
+            zf.write(real_path, arcname=arc_name, compress_type=zipfile.ZIP_STORED)
+
+    buf.seek(0)
+    proj_name = re.sub(r'[\\/:*?"<>|]+', "_", str(record.get("name") or "canvas")).strip() or "canvas"
+    return buf, f"{proj_name}.zip"
+
+
+def _normalize_zip_member(name: str) -> str | None:
+    clean = name.replace("\\", "/").lstrip("/")
+    if not clean or clean.endswith("/"):
+        return None
+    parts = clean.split("/")
+    if any(p in ("..", "") for p in parts):
+        return None
+    if parts[0] == "__MACOSX":
+        return None
+    return "/".join(parts)
+
+
+def import_project_zip(
+    file_stream: Any,
+    *,
+    filename: str,
+    projects: ProjectStore,
+    assets: AssetStore,
+) -> dict[str, Any]:
+    """Import a ZIP archive containing canvas.json + assets/* into a new project."""
+    try:
+        zf = zipfile.ZipFile(file_stream, "r")
+    except zipfile.BadZipFile as exc:
+        raise ValueError("无效的 ZIP 压缩包文件") from exc
+
+    with zf:
+        infos = zf.infolist()
+        if len(infos) > MAX_ZIP_FILES:
+            raise ValueError(f"ZIP 内文件数量超过限制（最多 {MAX_ZIP_FILES} 个）")
+
+        total_bytes = sum(max(0, info.file_size) for info in infos)
+        if total_bytes > MAX_ZIP_TOTAL_BYTES:
+            raise ValueError("ZIP 解压体积超过 1GB 限制")
+
+        members: dict[str, zipfile.ZipInfo] = {}
+        for info in infos:
+            norm = _normalize_zip_member(info.filename)
+            if norm:
+                members[norm] = info
+
+        # Find canvas.json (prefer root canvas.json, otherwise shortest *.json)
+        json_key = "canvas.json" if "canvas.json" in members else None
+        if not json_key:
+            json_candidates = sorted(
+                (k for k in members if k.lower().endswith(".json")),
+                key=lambda k: (k.count("/"), len(k)),
+            )
+            if json_candidates:
+                json_key = json_candidates[0]
+        if not json_key:
+            raise ValueError("ZIP 包中未找到 canvas.json 画布文件")
+
+        try:
+            raw = json.loads(zf.read(members[json_key]).decode("utf-8"))
+        except Exception as exc:
+            raise ValueError(f"画布 JSON 解析失败：{exc}") from exc
+
+        default_name = Path(filename or "导入画布").stem or "导入画布"
+        project_name = default_name
+        if isinstance(raw, dict) and isinstance(raw.get("snapshot"), dict):
+            snapshot = raw["snapshot"]
+            if raw.get("name"):
+                project_name = str(raw["name"])
+        elif isinstance(raw, dict) and isinstance((raw.get("canvas") or {}).get("cards"), list):
+            snapshot = raw
+            if raw.get("name"):
+                project_name = str(raw["name"])
+        elif isinstance(raw, dict) and isinstance(raw.get("cards"), list):
+            snapshot = {
+                "format": "rh-canvas",
+                "version": 1,
+                "exportedAt": datetime.now(timezone.utc).isoformat(),
+                "schemaVersion": 1,
+                "canvas": {
+                    "cards": raw["cards"],
+                    "seq": len(raw["cards"]) + 1,
+                    "viewport": raw.get("viewport") or {"x": 60, "y": 60, "z": 0.9},
+                },
+            }
+        else:
+            raise ValueError("ZIP 中的 JSON 格式不兼容，缺少 canvas.cards 字段")
+
+        # Extract all non-JSON media members into data/assets/
+        extracted_by_arc: dict[str, dict[str, str]] = {}
+        extracted_by_basename: dict[str, dict[str, str]] = {}
+        for norm, info in members.items():
+            if norm == json_key:
+                continue
+            if info.file_size <= 0:
+                continue
+            orig_name = Path(norm).name
+            ext = Path(orig_name).suffix.lower() or ".bin"
+            safe_stem = re.sub(r"[^a-zA-Z0-9_\-\u4e00-\u9fff]+", "_", Path(orig_name).stem).strip("_") or "asset"
+            stored_name = f"{safe_stem[:32]}-{uuid4().hex[:10]}{ext}"
+            target = assets.input_dir / stored_name
+            with zf.open(info, "r") as src, target.open("wb") as dst:
+                while True:
+                    chunk = src.read(1024 * 256)
+                    if not chunk:
+                        break
+                    dst.write(chunk)
+            entry = {
+                "kind": kind_for_suffix(ext),
+                "url": f"/api/assets/input/{quote(stored_name)}",
+                "path": str(target),
+                "stored_name": stored_name,
+            }
+            extracted_by_arc[norm] = entry
+            extracted_by_basename.setdefault(orig_name, entry)
+
+        # Rewrite zip:// URLs (and fallback basename matches) back to local /api/assets/input/...
+        cards = (snapshot.get("canvas") or {}).get("cards")
+        if isinstance(cards, list):
+            for card in cards:
+                if not isinstance(card, dict):
+                    continue
+                for field in ("results", "localMedia"):
+                    items = card.get(field)
+                    if not isinstance(items, list):
+                        continue
+                    for item in items:
+                        if not isinstance(item, dict):
+                            continue
+                        url = str(item.get("url") or "").strip()
+                        matched: dict[str, str] | None = None
+                        if url.startswith("zip://"):
+                            arc_key = url.removeprefix("zip://").replace("\\", "/").lstrip("/")
+                            matched = extracted_by_arc.get(arc_key) or extracted_by_basename.get(Path(arc_key).name)
+                        elif url.startswith(("/api/assets/input/", "/api/outputs/")):
+                            base = unquote(Path(url).name)
+                            matched = extracted_by_basename.get(base)
+                        if matched:
+                            item["url"] = matched["url"]
+                            item["path"] = matched["path"]
+
+        record = projects.create(name=project_name, snapshot=snapshot)
+        return {
+            "success": True,
+            "project": record,
+            "imported_assets": len(extracted_by_arc),
+        }

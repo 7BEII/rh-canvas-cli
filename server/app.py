@@ -12,6 +12,7 @@ from .project_store import ProjectCorruptError, ProjectStore, SnapshotTooLargeEr
 from .runninghub_client import RunningHubVideoClient, resolve_rh_base_url, resolve_rh_key
 from .settings_store import SettingsStore
 from .workflow_runner import WorkflowRunner
+from .zip_bundle import export_project_zip, import_project_zip
 
 ROOT_DIR = Path(__file__).resolve().parent.parent
 DATA_DIR = ROOT_DIR / "data"
@@ -24,7 +25,7 @@ def _json_error(error: Exception | str, status: int = 400):
 
 def create_app() -> Flask:
     app = Flask(__name__, static_folder=None)
-    app.config["MAX_CONTENT_LENGTH"] = 128 * 1024 * 1024
+    app.config["MAX_CONTENT_LENGTH"] = 512 * 1024 * 1024
 
     projects = ProjectStore(DATA_DIR / "projects")
     assets = AssetStore(DATA_DIR / "assets")
@@ -129,6 +130,44 @@ def create_app() -> Flask:
             return _json_error(exc, 404)
         except ValueError as exc:
             return _json_error(exc, 400)
+
+    @app.get("/api/projects/<project_id>/export-zip")
+    def export_project_as_zip(project_id: str):
+        try:
+            buf, download_name = export_project_zip(
+                project_id,
+                projects=projects,
+                assets=assets,
+                settings=settings,
+            )
+            return send_file(
+                buf,
+                mimetype="application/zip",
+                as_attachment=True,
+                download_name=download_name,
+            )
+        except FileNotFoundError as exc:
+            return _json_error(exc, 404)
+        except Exception as exc:
+            return _json_error(exc, 400)
+
+    @app.post("/api/projects/import-zip")
+    def import_project_from_zip():
+        file = request.files.get("file")
+        if file is None:
+            return _json_error("缺少上传文件字段 file", 400)
+        try:
+            res = import_project_zip(
+                file.stream,
+                filename=str(file.filename or "canvas.zip"),
+                projects=projects,
+                assets=assets,
+            )
+            return jsonify(res), 201
+        except (ValueError, SnapshotTooLargeError) as exc:
+            return _json_error(exc, 400)
+        except Exception as exc:
+            return _json_error(f"导入 ZIP 失败：{exc}", 400)
 
     @app.post("/api/assets/input")
     def upload_input_asset():

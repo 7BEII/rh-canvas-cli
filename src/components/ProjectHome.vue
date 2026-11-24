@@ -103,6 +103,16 @@ async function handleImportFile(event: Event) {
   input.value = '';
   if (!file) return;
   try {
+    if (file.name.toLowerCase().endsWith('.zip') || file.type === 'application/zip' || file.type === 'application/x-zip-compressed') {
+      const { project, importedAssets } = await projectsStore.importProjectZip(file);
+      canvasStore.loadSnapshot(project.snapshot);
+      canvasStore.showToast(
+        importedAssets > 0
+          ? `已导入画布「${project.name}」（还原 ${importedAssets} 份素材）`
+          : `已导入画布「${project.name}」`,
+      );
+      return;
+    }
     const raw = JSON.parse(await file.text());
     let snapshot: CanvasSnapshot;
     let name = file.name.replace(/\.json$/i, '');
@@ -126,7 +136,7 @@ async function handleImportFile(event: Event) {
     canvasStore.loadSnapshot(project.snapshot);
     canvasStore.showToast(`已导入画布「${project.name}」`);
   } catch (err: any) {
-    canvasStore.showToast(`导入失败：${err?.message || '无效 JSON'}`);
+    canvasStore.showToast(`导入失败：${err?.message || '无效文件'}`);
   }
 }
 
@@ -167,9 +177,9 @@ function formatTime(iso: string) {
         </button>
         <button class="btn" type="button" @click="fileInput?.click()">
           <Upload :size="15" />
-          导入 JSON
+          导入 ZIP / JSON
         </button>
-        <input ref="fileInput" type="file" accept=".json,application/json" hidden @change="handleImportFile" />
+        <input ref="fileInput" type="file" accept=".zip,.json,application/zip,application/json" hidden @change="handleImportFile" />
         <button class="btn primary" type="button" :disabled="busyId !== null" @click="handleCreateBlank">
           <Plus :size="16" />
           新建空白画布

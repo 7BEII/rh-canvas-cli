@@ -9,12 +9,11 @@ __pycache__/
 .venv/
 venv/
 
-# Secrets & local user data (NEVER commit API keys or local outputs)
+# Secrets & local user data (NEVER commit API keys)
 .env
 .env.*
 data/settings.json
 data/projects/
-data/outputs/
 
 # Ignore ad-hoc uploaded assets, keep bundled preset template assets (rhtv-*)
 data/assets/*
