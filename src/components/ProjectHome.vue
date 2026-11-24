@@ -159,7 +159,15 @@ function formatTime(iso: string) {
   <div class="home-shell">
     <header class="home-header">
       <div class="brand">
-        <div class="logo">◇</div>
+        <div class="logo" aria-hidden="true">
+          <svg viewBox="0 0 28 28" width="22" height="22" fill="none">
+            <rect x="3" y="4.5" width="8" height="8" rx="2.5" stroke="#ffffff" stroke-opacity="0.9" stroke-width="1.8" />
+            <rect x="3" y="15.5" width="8" height="8" rx="2.5" stroke="#ffffff" stroke-opacity="0.55" stroke-width="1.8" />
+            <rect x="17" y="9.5" width="8" height="9" rx="2.5" fill="#ccff00" />
+            <path d="M11 8.5C14.2 8.5 13.8 14 17 14" stroke="#ccff00" stroke-width="1.8" stroke-linecap="round" />
+            <path d="M11 19.5C14.2 19.5 13.8 14 17 14" stroke="#ffffff" stroke-opacity="0.45" stroke-width="1.6" stroke-linecap="round" />
+          </svg>
+        </div>
         <div>
           <h1>全部画布</h1>
           <p>选择预设模板开始创作，或继续编辑已有画布（独立 Vue 3 + Python 服务）</p>
@@ -350,15 +358,18 @@ function formatTime(iso: string) {
 }
 
 .logo {
-  width: 42px;
-  height: 42px;
+  width: 40px;
+  height: 40px;
   border-radius: 12px;
-  background: var(--accent);
-  color: #0e1410;
+  background: linear-gradient(145deg, #23252a 0%, #141518 100%);
+  border: 1px solid rgba(204, 255, 0, 0.32);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.08),
+    0 6px 18px rgba(0, 0, 0, 0.45),
+    0 0 16px rgba(204, 255, 0, 0.12);
   display: grid;
   place-items: center;
-  font-size: 22px;
-  font-weight: 800;
+  flex-shrink: 0;
 }
 
 .brand h1 {

@@ -76,8 +76,16 @@ async function handleExportZip() {
   <header class="rhtv-topbar">
     <div class="bar-left">
       <button class="logo-btn" type="button" title="返回全部画布" @click="handleBackHome">
-        <ChevronLeft :size="16" />
-        <span class="logo-mark">◇</span>
+        <ChevronLeft :size="15" />
+        <span class="logo-mark" aria-hidden="true">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none">
+            <rect x="2.5" y="4" width="6.5" height="6.5" rx="2" stroke="#ffffff" stroke-opacity="0.9" stroke-width="1.7" />
+            <rect x="2.5" y="13.5" width="6.5" height="6.5" rx="2" stroke="#ffffff" stroke-opacity="0.5" stroke-width="1.7" />
+            <rect x="14.5" y="8.2" width="7" height="7.6" rx="2" fill="#ccff00" />
+            <path d="M9 7.2C11.8 7.2 11.6 12 14.5 12" stroke="#ccff00" stroke-width="1.7" stroke-linecap="round" />
+            <path d="M9 16.8C11.8 16.8 11.6 12 14.5 12" stroke="#ffffff" stroke-opacity="0.45" stroke-width="1.5" stroke-linecap="round" />
+          </svg>
+        </span>
       </button>
 
       <div class="title-wrap">
@@ -191,10 +199,10 @@ async function handleExportZip() {
 }
 
 .logo-mark {
-  font-size: 16px;
-  font-weight: 800;
-  color: var(--accent);
-  line-height: 1;
+  display: grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
 }
 
 .title-wrap {
