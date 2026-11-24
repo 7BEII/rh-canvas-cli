@@ -27,6 +27,8 @@ class SettingsStore:
             "volc_sk": "",
             "runninghub_api_key": "",
             "runninghub_base_url": "https://www.runninghub.cn",
+            "tensor_api_key": "",
+            "tensor_base_url": "https://openapi.tensorart.me/canvas-openapi",
             "llm_api_key": "",
             "llm_base_url": "https://api.deepseek.com/v1",
             "llm_model": "deepseek-chat",

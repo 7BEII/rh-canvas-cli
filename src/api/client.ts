@@ -50,6 +50,7 @@ export const apiClient = {
       output_dir: string;
       has_ark_key: boolean;
       has_runninghub_key: boolean;
+      has_tensor_key: boolean;
       has_llm_key: boolean;
     }>('/health');
   },
@@ -63,6 +64,13 @@ export const apiClient = {
 
   testRunningHubConnection(payload?: { runninghub_api_key?: string; runninghub_base_url?: string }) {
     return request<{ success: boolean; message: string; status_code?: number }>('/runninghub/test', {
+      method: 'POST',
+      body: JSON.stringify(payload || {}),
+    });
+  },
+
+  testTensorConnection(payload?: { tensor_api_key?: string; tensor_base_url?: string }) {
+    return request<{ success: boolean; message: string; status_code?: number }>('/tensor/test', {
       method: 'POST',
       body: JSON.stringify(payload || {}),
     });

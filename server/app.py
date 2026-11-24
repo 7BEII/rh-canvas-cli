@@ -11,6 +11,7 @@ from .asset_store import AssetStore
 from .project_store import ProjectCorruptError, ProjectStore, SnapshotTooLargeError
 from .runninghub_client import RunningHubVideoClient, resolve_rh_base_url, resolve_rh_key
 from .settings_store import SettingsStore
+from .tensor_client import TensorCanvasClient, resolve_tensor_base_url, resolve_tensor_key
 from .workflow_runner import WorkflowRunner
 from .zip_bundle import export_project_zip, import_project_zip
 
@@ -43,6 +44,7 @@ def create_app() -> Flask:
                 "output_dir": str(settings.output_dir()),
                 "has_ark_key": bool(resolve_ark_key(cfg)),
                 "has_runninghub_key": bool(str(cfg.get("runninghub_api_key") or "").strip()),
+                "has_tensor_key": bool(resolve_tensor_key(cfg)),
                 "has_llm_key": bool(str(cfg.get("llm_api_key") or "").strip()),
             }
         )
@@ -67,6 +69,18 @@ def create_app() -> Flask:
         base_url = str(payload.get("runninghub_base_url") or resolve_rh_base_url(cfg)).strip()
         try:
             res = RunningHubVideoClient(api_key=api_key, base_url=base_url).test_connection()
+            return jsonify(res)
+        except Exception as exc:
+            return _json_error(exc, 400)
+
+    @app.post("/api/tensor/test")
+    def test_tensor_connection():
+        payload: dict[str, Any] = request.get_json(silent=True) or {}
+        cfg = settings.load()
+        api_key = str(payload.get("tensor_api_key") or resolve_tensor_key(cfg)).strip()
+        base_url = str(payload.get("tensor_base_url") or resolve_tensor_base_url(cfg)).strip()
+        try:
+            res = TensorCanvasClient(api_key=api_key, base_url=base_url).test_connection()
             return jsonify(res)
         except Exception as exc:
             return _json_error(exc, 400)

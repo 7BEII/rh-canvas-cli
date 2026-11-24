@@ -148,7 +148,7 @@ export interface PresetTemplate {
 }
 
 export interface AppSettings {
-  video_provider?: 'runninghub' | 'ark';
+  video_provider?: 'runninghub' | 'ark' | 'tensor';
   ark_api_key: string;
   ark_base_url: string;
   ark_video_model: string;
@@ -157,6 +157,8 @@ export interface AppSettings {
   volc_sk: string;
   runninghub_api_key: string;
   runninghub_base_url: string;
+  tensor_api_key: string;
+  tensor_base_url: string;
   llm_api_key: string;
   llm_base_url: string;
   llm_model: string;

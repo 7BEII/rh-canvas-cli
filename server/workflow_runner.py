@@ -20,6 +20,7 @@ from PIL import Image, ImageDraw, ImageFont
 from .ark_client import ArkClient, resolve_ark_base_url, resolve_ark_key
 from .runninghub_client import RunningHubVideoClient, resolve_rh_base_url, resolve_rh_key
 from .settings_store import SettingsStore
+from .tensor_client import TensorCanvasClient, is_tensor_model, resolve_tensor_base_url, resolve_tensor_key
 from .volc_assets import VolcAssetManager, resolve_volc_ak_sk
 
 
@@ -75,18 +76,27 @@ class WorkflowRunner:
         if ev:
             ev.set()
         remote_id = str(run.get("ark_task_id") or "").strip()
+        tensor_canvas_id = str(run.get("tensor_canvas_id") or "").strip()
+        tensor_session_id = str(run.get("tensor_session_id") or "").strip()
         remote_cancelled = False
         if remote_id:
             cfg = self.settings.load()
             ark_key = resolve_ark_key(cfg)
             if ark_key:
                 remote_cancelled = ArkClient(ark_key, resolve_ark_base_url(cfg)).cancel_task(remote_id)
+        elif tensor_canvas_id and tensor_session_id:
+            cfg = self.settings.load()
+            tensor_key = resolve_tensor_key(cfg)
+            if tensor_key:
+                remote_cancelled = TensorCanvasClient(tensor_key, resolve_tensor_base_url(cfg)).cancel_chat(
+                    tensor_canvas_id, tensor_session_id
+                )
         return {
             "success": True,
             "cancelled": True,
-            "ark_task_id": remote_id or None,
+            "ark_task_id": remote_id or tensor_session_id or None,
             "remote_cancelled": remote_cancelled,
-            "message": f"已发送中断指令" + (f"（已同步取消云端任务 {remote_id}）" if remote_cancelled else ""),
+            "message": f"已发送中断指令" + (f"（已同步取消云端任务 {remote_id or tensor_session_id}）" if remote_cancelled else ""),
         }
 
     def list_tasks(self, limit: int = 50) -> list[dict[str, Any]]:
@@ -635,7 +645,57 @@ class WorkflowRunner:
                 model = str(card.get("model") or "seedream-5-pro")
                 aspect = str(card.get("aspect") or "16:9")
                 ark_key = resolve_ark_key(config)
-                if ark_key:
+                tensor_key = resolve_tensor_key(config)
+                preferred = str(config.get("video_provider") or "runninghub").strip().lower()
+                tensor_only_model = is_tensor_model(model)
+
+                if tensor_only_model and not tensor_key:
+                    raise ValueError(f"模型 {model} 需要通过 Tensor (Forge) 渠道调用，请先在右上角「设置」中填写 Tensor Access Key")
+
+                use_tensor_img = (tensor_only_model and bool(tensor_key)) or (
+                    model != "local-preview" and preferred == "tensor" and bool(tensor_key)
+                ) or (model != "local-preview" and not ark_key and bool(tensor_key))
+
+                if use_tensor_img:
+                    tc = TensorCanvasClient(api_key=tensor_key, base_url=resolve_tensor_base_url(config))
+                    cancel_ev = threading.Event()
+                    run_state: dict[str, Any] = {"cancel_event": cancel_ev, "tensor_canvas_id": "", "tensor_session_id": ""}
+                    with self._lock:
+                        self._active_runs[node_id] = run_state
+
+                    def _on_tensor_session(cid: str, sid: str) -> None:
+                        with self._lock:
+                            run_state["tensor_canvas_id"] = cid
+                            run_state["tensor_session_id"] = sid
+
+                    try:
+                        out = tc.generate_image(
+                            model=model,
+                            prompt=combined_prompt,
+                            aspect=aspect,
+                            ref_assets=assets,
+                            output_dir=self.settings.output_dir(),
+                            cancel_event=cancel_ev,
+                            on_session_created=_on_tensor_session,
+                        )
+                    finally:
+                        with self._lock:
+                            if self._active_runs.get(node_id) is run_state:
+                                self._active_runs.pop(node_id, None)
+
+                    provider = f"tensor:{out['model']}"
+                    results = [
+                        {
+                            "kind": "image",
+                            "label": f"{out['model']} · Tensor",
+                            "name": out["filename"],
+                            "dims": out["size"],
+                            "path": str(out["path"]),
+                            "url": self._output_url(out["path"]),
+                        }
+                    ]
+                    message = f"Tensor 生图成功（{out['model']}）"
+                elif ark_key and model != "local-preview":
                     target_model = str(config.get("ark_image_model") or "").strip() or model
                     ark = ArkClient(api_key=ark_key, base_url=resolve_ark_base_url(config))
                     out = ark.generate_image(
@@ -658,10 +718,10 @@ class WorkflowRunner:
                     message = f"火山方舟生图成功（{out['model']}）"
                 else:
                     if not allow_mock:
-                        raise ValueError("未配置火山方舟 API Key，请在右上角「设置」中填写 API Key 或开启本地预览回退")
+                        raise ValueError("未配置生图 API Key，请在右上角「设置」中填写 Tensor 或火山方舟 API Key")
                     provider = f"preview:{model}"
                     results = [self._render_preview_image(node_name, combined_prompt, aspect, model)]
-                    message = f"已生成本地预览图（{model}，填写火山方舟 API Key 后将调用云端 Seedream）"
+                    message = f"已生成本地预览图（{model}，填写 Tensor 或火山方舟 API Key 后将调用云端模型）"
 
             elif node_type == "video":
                 model = str(card.get("model") or "seedance-2.0-mini")
@@ -680,14 +740,89 @@ class WorkflowRunner:
 
                 ark_key = resolve_ark_key(config)
                 rh_key = resolve_rh_key(config)
+                tensor_key = resolve_tensor_key(config)
                 preferred = str(config.get("video_provider") or "runninghub").strip().lower()
-                rh_only_model = any(k in model.lower() for k in ("wan-3", "wan3", "hailuo", "h3"))
+                tensor_only_model = is_tensor_model(model)
+                rh_only_model = (not tensor_only_model) and any(k in model.lower() for k in ("wan-3", "wan3", "hailuo", "h3"))
+                if tensor_only_model and not tensor_key:
+                    raise ValueError(f"模型 {model} 需要通过 Tensor (Forge) 渠道调用，请先在右上角「设置」中填写 Tensor Access Key")
                 if rh_only_model and not rh_key:
                     raise ValueError(f"模型 {model} 需要通过 RunningHub 渠道调用，请先在右上角「设置」中填写 RunningHub API Key")
-                use_rh = (rh_only_model and bool(rh_key)) or (preferred == "runninghub" and bool(rh_key)) or (not ark_key and bool(rh_key))
-                use_ark = (not use_rh) and bool(ark_key)
 
-                if use_rh:
+                use_tensor = (tensor_only_model and bool(tensor_key)) or (
+                    not rh_only_model and preferred == "tensor" and bool(tensor_key)
+                ) or (not rh_only_model and not rh_key and not ark_key and bool(tensor_key))
+                use_rh = (not use_tensor) and (
+                    (rh_only_model and bool(rh_key)) or (preferred == "runninghub" and bool(rh_key)) or (not ark_key and bool(rh_key))
+                )
+                use_ark = (not use_tensor) and (not use_rh) and bool(ark_key)
+
+                if use_tensor:
+                    full_prompt = combined_prompt
+                    if style_preset and style_preset != "无" and style_preset not in full_prompt:
+                        full_prompt = f"{full_prompt}\n画面风格：{style_preset}".strip()
+
+                    tc = TensorCanvasClient(api_key=tensor_key, base_url=resolve_tensor_base_url(config))
+                    cancel_ev = threading.Event()
+                    run_state: dict[str, Any] = {"cancel_event": cancel_ev, "tensor_canvas_id": "", "tensor_session_id": ""}
+                    with self._lock:
+                        self._active_runs[node_id] = run_state
+
+                    def _on_tensor_video_session(cid: str, sid: str) -> None:
+                        with self._lock:
+                            run_state["tensor_canvas_id"] = cid
+                            run_state["tensor_session_id"] = sid
+
+                    try:
+                        out = tc.generate_video(
+                            model=model,
+                            prompt=full_prompt,
+                            mode=video_mode,
+                            resolution=resolution,
+                            duration=duration,
+                            aspect=aspect,
+                            generate_audio=generate_audio,
+                            slots=slots,
+                            output_dir=self.settings.output_dir(),
+                            cancel_event=cancel_ev,
+                            on_session_created=_on_tensor_video_session,
+                        )
+                    finally:
+                        with self._lock:
+                            if self._active_runs.get(node_id) is run_state:
+                                self._active_runs.pop(node_id, None)
+
+                    provider = f"tensor:{out['model']}"
+                    video_res = {
+                        "kind": "video",
+                        "label": f"{out['model']} · {resolution} {duration}s · Tensor",
+                        "name": out["filename"],
+                        "path": str(out["path"]),
+                        "url": self._output_url(out["path"]),
+                    }
+                    manifest_result = {
+                        "kind": "text",
+                        "label": f"Tensor 任务 {out['task_id']}",
+                        "text": json.dumps(
+                            {
+                                "provider": "tensor",
+                                "canvas_id": out["canvas_id"],
+                                "session_id": out["task_id"],
+                                "model": out["model"],
+                                "mode": video_mode,
+                                "resolution": resolution,
+                                "duration": duration,
+                                "aspect": aspect,
+                                "remote_url": out["remote_url"],
+                            },
+                            ensure_ascii=False,
+                            indent=2,
+                        ),
+                    }
+                    results = [manifest_result, video_res]
+                    message = f"Tensor 生成成功（{out['model']} · 会话 {out['task_id']}）"
+
+                elif use_rh:
                     full_prompt = combined_prompt
                     if style_preset and style_preset != "无" and style_preset not in full_prompt:
                         full_prompt = f"{full_prompt}\n画面风格：{style_preset}".strip()

@@ -15,22 +15,28 @@ const projects = useProjectsStore();
 const saving = ref(false);
 const testing = ref(false);
 const testingRh = ref(false);
-const provider = ref<'runninghub' | 'ark'>('runninghub');
+const testingTensor = ref(false);
+const provider = ref<'runninghub' | 'ark' | 'tensor'>('runninghub');
 const rhApiKey = ref('');
 const arkApiKey = ref('');
 const volcAk = ref('');
 const volcSk = ref('');
+const tensorApiKey = ref('');
+const tensorBaseUrl = ref('https://openapi.tensorart.me/canvas-openapi');
 const testResult = ref<{ ok: boolean; msg: string } | null>(null);
 const rhTestResult = ref<{ ok: boolean; msg: string } | null>(null);
+const tensorTestResult = ref<{ ok: boolean; msg: string } | null>(null);
 
 onMounted(async () => {
   try {
     const res = await apiClient.getConfig();
-    provider.value = (res.config.video_provider as 'runninghub' | 'ark') || 'runninghub';
+    provider.value = (res.config.video_provider as 'runninghub' | 'ark' | 'tensor') || 'runninghub';
     rhApiKey.value = res.config.runninghub_api_key || '';
     arkApiKey.value = res.config.ark_api_key || '';
     volcAk.value = res.config.volc_ak || '';
     volcSk.value = res.config.volc_sk || '';
+    tensorApiKey.value = res.config.tensor_api_key || '';
+    tensorBaseUrl.value = res.config.tensor_base_url || 'https://openapi.tensorart.me/canvas-openapi';
   } catch (err: any) {
     canvas.showToast(err?.message || '读取配置失败');
   }
@@ -62,6 +68,22 @@ async function handleTestRunningHub() {
   }
 }
 
+async function handleTestTensor() {
+  testingTensor.value = true;
+  tensorTestResult.value = null;
+  try {
+    const res = await apiClient.testTensorConnection({
+      tensor_api_key: tensorApiKey.value.trim(),
+      tensor_base_url: tensorBaseUrl.value.trim(),
+    });
+    tensorTestResult.value = { ok: true, msg: res.message };
+  } catch (err: any) {
+    tensorTestResult.value = { ok: false, msg: err?.message || '连接测试失败' };
+  } finally {
+    testingTensor.value = false;
+  }
+}
+
 async function handleSave() {
   saving.value = true;
   try {
@@ -75,9 +97,17 @@ async function handleSave() {
       ark_image_model: '',
       volc_ak: volcAk.value.trim(),
       volc_sk: volcSk.value.trim(),
+      tensor_api_key: tensorApiKey.value.trim(),
+      tensor_base_url: tensorBaseUrl.value.trim() || 'https://openapi.tensorart.me/canvas-openapi',
     });
     await projects.checkHealth();
-    canvas.showToast(provider.value === 'runninghub' ? '已保存并切换至 RunningHub 渠道' : '已保存并切换至火山方舟官方渠道');
+    const msg =
+      provider.value === 'runninghub'
+        ? '已保存并切换至 RunningHub 渠道'
+        : provider.value === 'tensor'
+          ? '已保存并切换至 Tensor (Forge) 渠道'
+          : '已保存并切换至火山方舟官方渠道';
+    canvas.showToast(msg);
     emit('close');
   } catch (err: any) {
     canvas.showToast(err?.message || '保存失败');
@@ -109,7 +139,15 @@ async function handleSave() {
             :class="{ active: provider === 'runninghub' }"
             @click="provider = 'runninghub'"
           >
-            RunningHub 渠道（推荐 · 原生支持真人图）
+            RunningHub 渠道
+          </button>
+          <button
+            type="button"
+            class="ch-tab"
+            :class="{ active: provider === 'tensor' }"
+            @click="provider = 'tensor'"
+          >
+            Tensor (Forge) API
           </button>
           <button
             type="button"
@@ -117,7 +155,7 @@ async function handleSave() {
             :class="{ active: provider === 'ark' }"
             @click="provider = 'ark'"
           >
-            火山方舟官方渠道
+            火山方舟官方
           </button>
         </div>
 
@@ -152,6 +190,50 @@ async function handleSave() {
               <span class="model-pill">alibaba/wan-3.0/text-to-video</span>
               <span class="model-pill">minimax/hailuo-h3/multimodal-to-video</span>
               <span class="model-pill">media/upload/binary</span>
+            </div>
+          </div>
+        </template>
+
+        <!-- Tensor (Forge) Panel -->
+        <template v-else-if="provider === 'tensor'">
+          <label class="row">
+            <div class="label-row">
+              <span>Tensor / Forge Access Key（Canvas OpenAPI v1）</span>
+              <button type="button" class="test-btn" :disabled="testingTensor" @click="handleTestTensor">
+                <Loader2 v-if="testingTensor" :size="12" class="spin" />
+                <CheckCircle2 v-else :size="12" />
+                {{ testingTensor ? '测试中…' : '测试连通性' }}
+              </button>
+            </div>
+            <input
+              v-model="tensorApiKey"
+              class="field key-input"
+              type="password"
+              autofocus
+              placeholder="粘贴你的 ak_forge_... Access Key…"
+              @keydown.enter="handleSave"
+            />
+          </label>
+          <label class="row">
+            <span class="sub-label">接入节点（forge.art 选海外 Tensor，tusi.cn 选国内吐司）</span>
+            <select v-model="tensorBaseUrl" class="field">
+              <option value="https://openapi.tensorart.me/canvas-openapi">Tensor 海外（openapi.tensorart.me）</option>
+              <option value="https://openapi.tusiart.cn/canvas-openapi">吐司国内（openapi.tusiart.cn）</option>
+            </select>
+          </label>
+          <div v-if="tensorTestResult" class="test-banner" :class="{ ok: tensorTestResult.ok, err: !tensorTestResult.ok }">
+            {{ tensorTestResult.msg }}
+          </div>
+          <div class="builtin-box">
+            <div class="builtin-title">已内置 Tensor Canvas 生图与视频模型</div>
+            <div class="model-pills">
+              <span class="model-pill">NANO_BANANA_2 / PRO</span>
+              <span class="model-pill">CHATGPT_IMAGE_2</span>
+              <span class="model-pill">MIDJOURNEY_V7</span>
+              <span class="model-pill">WAN_2_7_IMAGE / VIDEO</span>
+              <span class="model-pill">SEEDANCE_2_0(_FAST)</span>
+              <span class="model-pill">KLING_V3(_OMNI)</span>
+              <span class="model-pill">VIDU_Q3_PRO / PIXVERSE_V6</span>
             </div>
           </div>
         </template>
@@ -214,7 +296,7 @@ async function handleSave() {
 }
 
 .modal {
-  width: min(510px, 100%);
+  width: min(560px, 100%);
   border-radius: 18px;
   background: var(--surface);
   border: 1px solid var(--line-strong);
@@ -253,7 +335,7 @@ async function handleSave() {
 
 .channel-tabs {
   display: grid;
-  grid-template-columns: 1.35fr 1fr;
+  grid-template-columns: repeat(3, 1fr);
   gap: 6px;
   padding: 4px;
   border-radius: 12px;
