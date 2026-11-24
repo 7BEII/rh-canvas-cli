@@ -104,7 +104,7 @@ async function handleQuickUpload(event: Event) {
     <input
       ref="uploadInput"
       type="file"
-      accept="image/*,video/*,audio/*"
+      accept="image/*,video/*,audio/*,.mp4,.mov,.webm,.mkv,.m4v,.avi,.mp3,.wav,.m4a,.aac,.ogg,.flac,.opus"
       multiple
       hidden
       @change="handleQuickUpload"

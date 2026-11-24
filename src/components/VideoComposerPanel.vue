@@ -104,6 +104,17 @@ const currentMode = computed<VideoGenMode>({
   },
 });
 
+function pickMediaResult(card: CanvasCard) {
+  const results = card.results || [];
+  if (!results.length) return undefined;
+  const active = results[card.activeResultIndex ?? results.length - 1];
+  if (active && active.kind !== 'text') return active;
+  for (let i = results.length - 1; i >= 0; i -= 1) {
+    if (results[i] && results[i].kind !== 'text') return results[i];
+  }
+  return active;
+}
+
 // Build unified numbered reference items: 图片1..N, 视频1..N, 音频1..N
 const refItems = computed<ResolvedRefItem[]>(() => {
   const images: ResolvedRefItem[] = [];
@@ -113,13 +124,17 @@ const refItems = computed<ResolvedRefItem[]>(() => {
   for (const r of props.card.refs || []) {
     const up = canvas.cards.find((c) => c.id === r.from);
     if (!up) continue;
-    const latest = up.results?.[up.activeResultIndex ?? (up.results?.length || 1) - 1];
+    const latest = pickMediaResult(up);
     const kind: 'image' | 'video' | 'audio' | null =
       r.kind === 'image' || r.kind === 'video' || r.kind === 'audio'
         ? r.kind
         : latest?.kind && latest.kind !== 'text'
           ? latest.kind
-          : up.mediaKind || null;
+          : up.type === 'video'
+            ? 'video'
+            : up.type === 'audio'
+              ? 'audio'
+              : up.mediaKind || null;
     if (!kind) continue;
     const thumbUrl = latest?.url || latest?.dataUrl || undefined;
     const base = {
@@ -185,32 +200,54 @@ const filteredMentions = computed(() => {
   );
 });
 
-// Canvas media candidates for the "+" Reference Picker Modal
+// Canvas media candidates for the "+" Reference Picker Modal (canvas cards + local uploads)
 const canvasMediaCandidates = computed(() => {
   const q = pickerSearch.value.trim().toLowerCase();
-  return canvas.cards
-    .filter((c) => c.id !== props.card.id && (c.type === 'source' || c.type === 'image' || c.type === 'audio'))
+  const cardItems = canvas.cards
+    .filter(
+      (c) =>
+        c.id !== props.card.id &&
+        (c.type === 'source' || c.type === 'image' || c.type === 'video' || c.type === 'audio'),
+    )
     .map((c) => {
-      const latest = c.results?.[c.activeResultIndex ?? (c.results?.length || 1) - 1];
+      const latest = pickMediaResult(c);
       const kind: 'image' | 'video' | 'audio' =
         latest?.kind && latest.kind !== 'text'
           ? latest.kind
-          : c.type === 'audio'
-            ? 'audio'
-            : c.mediaKind || 'image';
+          : c.type === 'video'
+            ? 'video'
+            : c.type === 'audio'
+              ? 'audio'
+              : c.mediaKind || 'image';
       const attached = (props.card.refs || []).some((r) => r.from === c.id);
       return {
+        key: `card-${c.id}`,
+        sourceType: 'edge' as const,
         card: c,
+        localId: undefined as string | undefined,
+        name: c.name,
         kind,
         thumbUrl: latest?.url || latest?.dataUrl || '',
         attached,
       };
-    })
-    .filter((item) => {
-      if (pickerFilter.value !== 'all' && item.kind !== pickerFilter.value) return false;
-      if (!q) return true;
-      return item.card.name.toLowerCase().includes(q);
     });
+
+  const localItems = (props.card.localMedia || []).map((lm) => ({
+    key: `local-${lm.id}`,
+    sourceType: 'local' as const,
+    card: undefined as CanvasCard | undefined,
+    localId: lm.id,
+    name: lm.name,
+    kind: lm.kind,
+    thumbUrl: lm.url || '',
+    attached: true,
+  }));
+
+  return [...localItems, ...cardItems].filter((item) => {
+    if (pickerFilter.value !== 'all' && item.kind !== pickerFilter.value) return false;
+    if (!q) return true;
+    return item.name.toLowerCase().includes(q);
+  });
 });
 
 function escapeHtml(str: string) {
@@ -219,7 +256,7 @@ function escapeHtml(str: string) {
 
 function isVideoUrl(url?: string) {
   if (!url) return false;
-  return /\.(mp4|mov|webm|mkv)(\?|$)/i.test(url);
+  return /\.(mp4|mov|webm|mkv|m4v|avi|wmv|flv|3gp)(\?|$)/i.test(url);
 }
 
 function buildChipHtml(tag: string): string {
@@ -426,7 +463,19 @@ function detachRef(item: ResolvedRefItem) {
   }
 }
 
-function toggleCandidate(candidate: { card: CanvasCard; kind: 'image' | 'video' | 'audio'; attached: boolean }) {
+function toggleCandidate(candidate: {
+  sourceType: 'edge' | 'local';
+  card?: CanvasCard;
+  localId?: string;
+  kind: 'image' | 'video' | 'audio';
+  attached: boolean;
+}) {
+  if (candidate.sourceType === 'local' && candidate.localId) {
+    props.card.localMedia = (props.card.localMedia || []).filter((m) => m.id !== candidate.localId);
+    canvas.scheduleSave();
+    return;
+  }
+  if (!candidate.card) return;
   if (candidate.attached) {
     canvas.disconnectEdge(candidate.card.id, props.card.id, candidate.kind);
   } else {
@@ -441,6 +490,7 @@ async function handleDirectUpload(event: Event) {
   if (!files.length) return;
   uploading.value = true;
   try {
+    let added = 0;
     for (const file of files) {
       const res = await apiClient.uploadAsset(file);
       props.card.localMedia = [
@@ -453,9 +503,11 @@ async function handleDirectUpload(event: Event) {
           path: res.asset.path,
         },
       ];
+      added += 1;
     }
     canvas.scheduleSave();
-    canvas.showToast(`已添加 ${files.length} 个参考素材`);
+    pickerOpen.value = false;
+    canvas.showToast(`已添加 ${added} 个参考素材`);
   } catch (err: any) {
     canvas.showToast(`上传失败：${err?.message || '未知错误'}`);
   } finally {
@@ -919,8 +971,14 @@ function handleSubmit() {
 
         <div class="picker-grid">
           <!-- Local Upload Card -->
-          <button type="button" class="picker-card upload-card" @click="uploadInput?.click()">
-            <Upload :size="20" />
+          <button
+            type="button"
+            class="picker-card upload-card"
+            :disabled="uploading"
+            @click="uploadInput?.click()"
+          >
+            <Loader2 v-if="uploading" :size="20" class="spin" />
+            <Upload v-else :size="20" />
             <span>{{ uploading ? '上传中…' : '本地上传' }}</span>
             <small>支持图片 / 视频 / 音频</small>
           </button>
@@ -928,7 +986,7 @@ function handleSubmit() {
           <input
             ref="uploadInput"
             type="file"
-            accept="image/*,video/*,audio/*"
+            accept="image/*,video/*,audio/*,.mp4,.mov,.webm,.mkv,.m4v,.avi,.mp3,.wav,.m4a,.aac,.ogg,.flac,.opus"
             multiple
             hidden
             @change="handleDirectUpload"
@@ -937,12 +995,19 @@ function handleSubmit() {
           <!-- Canvas Media Cards -->
           <div
             v-for="cand in canvasMediaCandidates"
-            :key="cand.card.id"
+            :key="cand.key"
             class="picker-card"
             :class="{ attached: cand.attached }"
             @click="toggleCandidate(cand)"
           >
-            <img v-if="cand.kind !== 'audio' && cand.thumbUrl" :src="cand.thumbUrl" :alt="cand.card.name" />
+            <video
+              v-if="cand.kind === 'video' && cand.thumbUrl && isVideoUrl(cand.thumbUrl)"
+              :src="cand.thumbUrl"
+              muted
+              playsinline
+              preload="metadata"
+            />
+            <img v-else-if="cand.kind !== 'audio' && cand.thumbUrl" :src="cand.thumbUrl" :alt="cand.name" />
             <div v-else class="picker-fallback">
               <Music v-if="cand.kind === 'audio'" :size="22" />
               <Film v-else-if="cand.kind === 'video'" :size="22" />
@@ -951,7 +1016,7 @@ function handleSubmit() {
 
             <span class="cand-type">{{ cand.kind === 'image' ? '图片' : cand.kind === 'video' ? '视频' : '音频' }}</span>
             <span v-if="cand.attached" class="cand-attached">已引用</span>
-            <div class="cand-name">{{ cand.card.name }}</div>
+            <div class="cand-name">{{ cand.name }}</div>
           </div>
         </div>
       </div>
@@ -1811,7 +1876,8 @@ function handleSubmit() {
   border-color: var(--accent);
 }
 
-.picker-card img {
+.picker-card img,
+.picker-card video {
   width: 100%;
   height: 100%;
   object-fit: cover;

@@ -103,6 +103,7 @@ async function handleFileUpload(event: Event) {
   uploading.value = true;
   try {
     const res = await apiClient.uploadAsset(file);
+    playingAudio.value = false;
     props.card.mediaKind = res.asset.kind;
     props.card.results = [
       {
@@ -315,10 +316,10 @@ function onVideoControlsPointerDown(event: PointerEvent) {
         type="file"
         :accept="
           resolvedMediaKind === 'video'
-            ? 'video/*'
+            ? 'video/*,.mp4,.mov,.webm,.mkv,.m4v,.avi'
             : resolvedMediaKind === 'audio'
-              ? 'audio/*'
-              : 'image/*,video/*,audio/*'
+              ? 'audio/*,.mp3,.wav,.m4a,.aac,.ogg,.flac,.opus'
+              : 'image/*,video/*,audio/*,.mp4,.mov,.webm,.mkv,.m4v,.avi,.mp3,.wav,.m4a,.aac,.ogg,.flac,.opus'
         "
         hidden
         @change="handleFileUpload"
@@ -375,7 +376,7 @@ function onVideoControlsPointerDown(event: PointerEvent) {
           <Film :size="22" />
           <span>{{ uploading ? '上传中…' : '点击上传参考视频' }}</span>
         </div>
-        <div class="play-overlay">
+        <div v-if="mediaSrc" class="play-overlay">
           <Play :size="16" fill="currentColor" />
         </div>
       </div>

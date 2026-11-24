@@ -483,7 +483,7 @@ function closeMentionSoon() {
         ref="fileInput"
         type="file"
         multiple
-        accept="image/*,video/*,audio/*"
+        accept="image/*,video/*,audio/*,.mp4,.mov,.webm,.mkv,.m4v,.avi,.mp3,.wav,.m4a,.aac,.ogg,.flac,.opus"
         hidden
         @change="handleDirectUpload"
       />

@@ -125,13 +125,27 @@ class WorkflowRunner:
             results = card.get("results") or []
             active_idx = card.get("activeResultIndex")
             selected = None
+            want_text = ref.get("kind") == "text"
             if isinstance(results, list) and results:
-                if isinstance(active_idx, int) and 0 <= active_idx < len(results):
-                    selected = results[active_idx]
+                if want_text:
+                    if isinstance(active_idx, int) and 0 <= active_idx < len(results):
+                        selected = results[active_idx]
+                    else:
+                        selected = results[-1]
                 else:
-                    selected = results[-1]
+                    if isinstance(active_idx, int) and 0 <= active_idx < len(results):
+                        cand = results[active_idx]
+                        if isinstance(cand, dict) and cand.get("kind") != "text":
+                            selected = cand
+                    if selected is None:
+                        for cand in reversed(results):
+                            if isinstance(cand, dict) and cand.get("kind") != "text":
+                                selected = cand
+                                break
+                    if selected is None:
+                        selected = results[-1]
 
-            if ref.get("kind") == "text":
+            if want_text:
                 txt = (selected or {}).get("text") or card.get("prompt") or card.get("text") or ""
                 if str(txt).strip():
                     texts.append(str(txt).strip())
@@ -243,8 +257,15 @@ class WorkflowRunner:
             selected = None
             if isinstance(results, list) and results:
                 if isinstance(active_idx, int) and 0 <= active_idx < len(results):
-                    selected = results[active_idx]
-                else:
+                    cand = results[active_idx]
+                    if isinstance(cand, dict) and cand.get("kind") != "text":
+                        selected = cand
+                if selected is None:
+                    for cand in reversed(results):
+                        if isinstance(cand, dict) and cand.get("kind") != "text":
+                            selected = cand
+                            break
+                if selected is None:
                     selected = results[-1]
             push(
                 kind,

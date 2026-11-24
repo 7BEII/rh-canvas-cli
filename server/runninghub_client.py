@@ -12,6 +12,7 @@ from uuid import uuid4
 import requests
 
 from .ark_client import BUILTIN_PUBLIC_URLS
+from .asset_store import mime_for_suffix
 
 DEFAULT_RH_BASE = "https://www.runninghub.cn"
 UPLOAD_PATH = "/openapi/v2/media/upload/binary"
@@ -100,10 +101,7 @@ class RunningHubVideoClient:
         return payload
 
     def upload_local_file(self, path: Path, kind: str) -> str:
-        mime, _ = mimetypes.guess_type(str(path))
-        if not mime:
-            mime = {"image": "image/png", "video": "video/mp4", "audio": "audio/mpeg"}.get(kind, "application/octet-stream")
-        mime = mime.lower().replace("image/jpg", "image/jpeg")
+        mime = mime_for_suffix(path.suffix, kind)
         with path.open("rb") as fh:
             resp = requests.post(
                 f"{self.base_url}{UPLOAD_PATH}",
@@ -140,6 +138,11 @@ class RunningHubVideoClient:
             local_cand = Path(__file__).resolve().parent.parent / "data" / "assets" / fname
             if local_cand.exists() and local_cand.is_file():
                 return self.upload_local_file(local_cand, str(slot.get("kind") or "image"))
+        if url.startswith("/api/outputs/"):
+            rel = unquote(url.removeprefix("/api/outputs/"))
+            local_out = Path(__file__).resolve().parent.parent / "data" / "outputs" / rel
+            if local_out.exists() and local_out.is_file():
+                return self.upload_local_file(local_out, str(slot.get("kind") or "image"))
         raw_path = str(slot.get("path") or "").strip()
         if raw_path:
             p = Path(raw_path)

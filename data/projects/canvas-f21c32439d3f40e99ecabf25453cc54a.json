@@ -3,12 +3,12 @@
   "id": "canvas-f21c32439d3f40e99ecabf25453cc54a",
   "name": "LibTV 复刻 · 全能参考精简版",
   "created_at": "2026-11-24T04:31:51.396320+00:00",
-  "updated_at": "2026-11-24T10:45:54.655917+00:00",
+  "updated_at": "2026-11-24T10:50:33.590922+00:00",
   "node_count": 14,
   "snapshot": {
     "format": "rh-canvas",
     "version": 1,
-    "exportedAt": "2026-11-24T10:45:54.652Z",
+    "exportedAt": "2026-11-24T10:50:33.587Z",
     "schemaVersion": 1,
     "canvas": {
       "cards": [
@@ -302,6 +302,7 @@
           "aspect": "9:16",
           "batchCount": 1,
           "duration": 15,
+          "error": "Tensor 未返回生成产物，请检查账号 Energy 余额或提示词（Agent 回复：[系统提示：响应因 BadRequestError 中断，请重试]）",
           "generateAudio": true,
           "height": 290,
           "id": "n-14-zptf",
@@ -370,21 +371,20 @@
           "resolution": "720p",
           "results": [],
           "selected": false,
+          "status": "error",
           "stylePreset": "古风奇幻",
           "type": "video",
           "videoMode": "omni",
           "width": 210,
           "x": 836,
-          "y": 186,
-          "status": "error",
-          "error": "Tensor 未返回生成产物，请检查账号 Energy 余额或提示词（Agent 回复：[系统提示：响应因 BadRequestError 中断，请重试]）"
+          "y": 186
         }
       ],
       "seq": 15,
       "viewport": {
-        "x": 336.83287736448585,
-        "y": 106.37891445998122,
-        "z": 0.879
+        "x": 493.50556561253745,
+        "y": 255.1506829012144,
+        "z": 0.602
       }
     }
   }

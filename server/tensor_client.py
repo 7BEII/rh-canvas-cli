@@ -13,6 +13,8 @@ from uuid import uuid4
 import requests
 from PIL import Image
 
+from .asset_store import kind_for_suffix, mime_for_suffix
+
 DEFAULT_TENSOR_BASE = "https://openapi.tensorart.me/canvas-openapi"
 TUSI_TENSOR_BASE = "https://openapi.tusiart.cn/canvas-openapi"
 
@@ -212,21 +214,25 @@ class TensorCanvasClient:
         if not file_type:
             raise ValueError(f"Tensor 不支持的文件类型：{ext or file_path.name}")
         data = self._post_json("/media/upload/create", {"fileType": file_type}, timeout=20)
+        media_id = str(data.get("mediaId") or "").strip()
         upload_url = str(data.get("uploadUrl") or "").strip()
         display_url = str(data.get("displayUrl") or "").strip()
         if not upload_url or not display_url:
             raise RuntimeError("Tensor 上传地址申请失败")
 
-        mime = mimetypes.guess_type(str(file_path))[0] or "application/octet-stream"
+        mime = mime_for_suffix(file_path.suffix, kind_for_suffix(file_path.suffix))
         with file_path.open("rb") as fh:
-            put_resp = requests.put(upload_url, headers={"Content-Type": mime}, data=fh, timeout=120)
+            put_resp = requests.put(upload_url, headers={"Content-Type": mime}, data=fh, timeout=180)
         if not put_resp.ok:
             raise RuntimeError(f"上传素材到 Tensor 存储失败 (HTTP {put_resp.status_code})")
-        return {
+        file_obj: dict[str, Any] = {
             "url": display_url,
             "mimeType": mime,
             "type": "URL",
         }
+        if media_id:
+            file_obj["assetId"] = media_id
+        return file_obj
 
     def _consume_sse(
         self,
@@ -472,15 +478,38 @@ class TensorCanvasClient:
         if input_files:
             payload["files"] = input_files[:10]
 
-        res = self._consume_sse(
-            f"{self.base_url}/v1/agent/chat/stream",
-            payload,
-            artifacts,
-            texts,
-            cancel_event=cancel_event,
-            canvas_id=canvas_id,
-            session_id=session_id,
-        )
+        res: dict[str, Any] = {}
+        for attempt in range(2):
+            artifacts.clear()
+            texts.clear()
+            if attempt > 0:
+                session_id = self.create_session(canvas_id, title=f"{pinned_model}-retry")
+                payload["sessionId"] = session_id
+                if on_session_created:
+                    on_session_created(canvas_id, session_id)
+
+            res = self._consume_sse(
+                f"{self.base_url}/v1/agent/chat/stream",
+                payload,
+                artifacts,
+                texts,
+                cancel_event=cancel_event,
+                canvas_id=canvas_id,
+                session_id=session_id,
+            )
+
+            # Retry once if Tensor Agent aborted with transient BadRequestError before proposing any tool
+            reply_so_far = "".join(texts)
+            if (
+                attempt == 0
+                and not artifacts
+                and not res.get("pending_intent")
+                and not res.get("error")
+                and "BadRequestError" in reply_so_far
+            ):
+                time.sleep(2.0)
+                continue
+            break
 
         # Auto-approve billing confirmation if proposed (up to 3 rounds)
         rounds = 0
@@ -538,9 +567,11 @@ class TensorCanvasClient:
 
         urls = list(dict.fromkeys(urls))
         if not urls:
-            reply_preview = "".join(texts).strip()[:240]
+            reply_preview = "".join(texts).strip()[:280]
+            if "BadRequestError" in reply_preview:
+                raise RuntimeError(f"Tensor 云端 Agent 响应中断（已自动重试仍失败）：{reply_preview}")
             hint = f"（Agent 回复：{reply_preview}）" if reply_preview else ""
-            raise RuntimeError(f"Tensor 未返回生成产物，请检查账号 Energy 余额或提示词{hint}")
+            raise RuntimeError(f"Tensor 未返回生成产物{hint}")
 
         return {
             "canvas_id": canvas_id,
@@ -634,11 +665,15 @@ class TensorCanvasClient:
         on_session_created: Callable[[str, str], None] | None = None,
     ) -> dict[str, Any]:
         input_files: list[dict[str, Any]] = []
+        slot_notes: list[str] = []
         if mode != "t2v":
-            for s in slots[:10]:
+            for idx, s in enumerate(slots[:10], start=1):
                 local_p = self._resolve_local_file(s)
                 if local_p is not None:
                     input_files.append(self.upload_file(local_p))
+                    tag = str(s.get("tag") or f"素材{idx}")
+                    label = str(s.get("label") or local_p.name)
+                    slot_notes.append(f"附件{len(input_files)}={tag}({label})")
 
         pinned = resolve_pinned_model(model, kind="video", has_refs=bool(input_files))
         clean_prompt = (prompt or "").strip() or "生成一段电影感运镜视频"
@@ -652,7 +687,8 @@ class TensorCanvasClient:
         if not generate_audio:
             hints.append("静音/不生成音频")
         hint_str = "，".join(hints)
-        full_msg = f"请直接生成视频（不要反问，立即调用视频生成工具，{hint_str}）：\n{clean_prompt}"
+        map_line = f"\n附件与引用标签对应关系：{'; '.join(slot_notes)}" if slot_notes else ""
+        full_msg = f"请直接生成视频（不要反问，立即调用视频生成工具，{hint_str}）：{map_line}\n{clean_prompt}"
 
         gen = self._run_agent_generation(
             expected_kind="video",

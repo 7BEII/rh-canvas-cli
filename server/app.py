@@ -7,7 +7,7 @@ from typing import Any
 from flask import Flask, jsonify, request, send_file, send_from_directory
 
 from .ark_client import ArkClient, resolve_ark_base_url, resolve_ark_key
-from .asset_store import AssetStore
+from .asset_store import AssetStore, kind_for_suffix, mime_for_suffix
 from .project_store import ProjectCorruptError, ProjectStore, SnapshotTooLargeError
 from .runninghub_client import RunningHubVideoClient, resolve_rh_base_url, resolve_rh_key
 from .settings_store import SettingsStore
@@ -27,6 +27,10 @@ def _json_error(error: Exception | str, status: int = 400):
 def create_app() -> Flask:
     app = Flask(__name__, static_folder=None)
     app.config["MAX_CONTENT_LENGTH"] = 512 * 1024 * 1024
+
+    @app.errorhandler(413)
+    def handle_too_large(_err):
+        return _json_error("上传文件超过服务器 512MB 限制", 413)
 
     projects = ProjectStore(DATA_DIR / "projects")
     assets = AssetStore(DATA_DIR / "assets")
@@ -198,7 +202,8 @@ def create_app() -> Flask:
     def serve_input_asset(asset_name: str):
         try:
             target = assets.resolve_input(asset_name)
-            return send_file(target)
+            mime = mime_for_suffix(target.suffix, kind_for_suffix(target.suffix))
+            return send_file(target, mimetype=mime, conditional=True)
         except FileNotFoundError as exc:
             return _json_error(exc, 404)
         except ValueError as exc:
@@ -256,7 +261,8 @@ def create_app() -> Flask:
             return _json_error("非法输出路径", 400)
         if not target.exists() or not target.is_file():
             return _json_error("输出文件不存在", 404)
-        return send_file(target)
+        mime = mime_for_suffix(target.suffix, kind_for_suffix(target.suffix))
+        return send_file(target, mimetype=mime, conditional=True)
 
     @app.get("/api/config")
     def get_config():
