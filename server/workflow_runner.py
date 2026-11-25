@@ -631,6 +631,7 @@ class WorkflowRunner:
 
     def run_node(self, card: dict[str, Any], upstream: list[dict[str, Any]]) -> dict[str, Any]:
         started = time.perf_counter()
+        started_at = _now_iso()
         node_id = str(card.get("id") or "node")
         node_name = str(card.get("name") or card.get("type") or "节点")
         node_type = str(card.get("type") or "prompt")
@@ -1155,7 +1156,7 @@ class WorkflowRunner:
                     "status": "done",
                     "message": message,
                     "provider": provider,
-                    "created_at": _now_iso(),
+                    "created_at": started_at,
                     "finished_at": _now_iso(),
                     "duration_ms": duration_ms,
                 }
@@ -1172,7 +1173,7 @@ class WorkflowRunner:
                     "status": "error",
                     "message": str(exc),
                     "provider": provider,
-                    "created_at": _now_iso(),
+                    "created_at": started_at,
                     "finished_at": _now_iso(),
                     "duration_ms": duration_ms,
                 }

@@ -582,17 +582,30 @@ function onVideoControlsPointerDown(event: PointerEvent) {
       <div v-if="card.error" class="node-err-pill" @pointerdown.stop>
         <div class="err-head">
           <span>报错信息</span>
-          <button
-            type="button"
-            class="err-copy-btn"
-            :class="{ copied: copiedError }"
-            title="复制原始报错"
-            @click.stop="copyNodeError"
-          >
-            <Check v-if="copiedError" :size="11" />
-            <Copy v-else :size="11" />
-            <span>{{ copiedError ? '已复制' : 'Copy' }}</span>
-          </button>
+          <div class="err-actions">
+            <button
+              type="button"
+              class="err-copy-btn"
+              :class="{ copied: copiedError }"
+              title="复制原始报错"
+              @click.stop="copyNodeError"
+            >
+              <Check v-if="copiedError" :size="11" />
+              <Copy v-else :size="11" />
+              <span>{{ copiedError ? '已复制' : 'Copy' }}</span>
+            </button>
+            <button
+              type="button"
+              class="err-copy-btn"
+              title="关闭报错提示"
+              @click.stop="
+                card.error = '';
+                card.status = card.results?.length ? 'done' : 'idle';
+              "
+            >
+              ×
+            </button>
+          </div>
         </div>
         <div class="err-text">{{ card.error }}</div>
       </div>
@@ -667,17 +680,30 @@ function onVideoControlsPointerDown(event: PointerEvent) {
         <div v-if="card.error" class="generic-err" @pointerdown.stop>
           <div class="err-head">
             <span>报错信息</span>
-            <button
-              type="button"
-              class="err-copy-btn"
-              :class="{ copied: copiedError }"
-              title="复制原始报错"
-              @click.stop="copyNodeError"
-            >
-              <Check v-if="copiedError" :size="11" />
-              <Copy v-else :size="11" />
-              <span>{{ copiedError ? '已复制' : 'Copy' }}</span>
-            </button>
+            <div class="err-actions">
+              <button
+                type="button"
+                class="err-copy-btn"
+                :class="{ copied: copiedError }"
+                title="复制原始报错"
+                @click.stop="copyNodeError"
+              >
+                <Check v-if="copiedError" :size="11" />
+                <Copy v-else :size="11" />
+                <span>{{ copiedError ? '已复制' : 'Copy' }}</span>
+              </button>
+              <button
+                type="button"
+                class="err-copy-btn"
+                title="关闭报错提示"
+                @click.stop="
+                  card.error = '';
+                  card.status = card.results?.length ? 'done' : 'idle';
+                "
+              >
+                ×
+              </button>
+            </div>
           </div>
           <div class="err-text">{{ card.error }}</div>
         </div>
@@ -1052,6 +1078,12 @@ function onVideoControlsPointerDown(event: PointerEvent) {
   border: 1px solid rgba(255, 255, 255, 0.14);
   font-size: 10.5px;
   color: #ffffff;
+}
+
+.err-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
 }
 
 .node-err-pill {

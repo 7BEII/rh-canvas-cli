@@ -75,6 +75,16 @@ export const useCanvasStore = defineStore('canvas', () => {
     }, 900);
   }
 
+  function sanitizeCardsForPersistence(list: CanvasCard[]): CanvasCard[] {
+    return deepClone(list).map((card: CanvasCard) => {
+      const next: CanvasCard = { ...card, error: '' };
+      if (next.status === 'running' || next.status === 'error') {
+        next.status = next.results?.length ? 'done' : 'idle';
+      }
+      return next;
+    });
+  }
+
   function buildSnapshot(): CanvasSnapshot {
     return {
       format: 'rh-canvas',
@@ -82,7 +92,7 @@ export const useCanvasStore = defineStore('canvas', () => {
       exportedAt: new Date().toISOString(),
       schemaVersion: 1,
       canvas: {
-        cards: deepClone(cards.value),
+        cards: sanitizeCardsForPersistence(cards.value),
         seq: seq.value,
         viewport: { ...viewport.value },
       },
@@ -102,11 +112,7 @@ export const useCanvasStore = defineStore('canvas', () => {
 
   function loadSnapshot(snapshot?: CanvasSnapshot) {
     const c = snapshot?.canvas;
-    cards.value = Array.isArray(c?.cards)
-      ? deepClone(c.cards).map((card: CanvasCard) =>
-          card.status === 'running' ? { ...card, status: 'idle' } : card,
-        )
-      : [];
+    cards.value = Array.isArray(c?.cards) ? sanitizeCardsForPersistence(c.cards) : [];
     viewport.value = c?.viewport ? { ...c.viewport } : { x: 80, y: 60, z: 1 };
     seq.value = typeof c?.seq === 'number' ? c.seq : cards.value.length + 1;
     undoStack.value = [];

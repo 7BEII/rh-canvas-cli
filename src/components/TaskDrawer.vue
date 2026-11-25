@@ -140,6 +140,39 @@ function formatTime(iso: string) {
   }
 }
 
+function formatLogTime(iso?: string) {
+  if (!iso) return '';
+  try {
+    return new Date(iso).toLocaleString('zh-CN', {
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+      hour12: false,
+    });
+  } catch {
+    return '';
+  }
+}
+
+function formatFullTime(iso?: string) {
+  if (!iso) return '';
+  try {
+    return new Date(iso).toLocaleString('zh-CN', {
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+      hour12: false,
+    });
+  } catch {
+    return '';
+  }
+}
+
 function openContextMenu(event: MouseEvent, item: OutputItem) {
   ctxMenu.value = {
     x: Math.min(window.innerWidth - 150, event.clientX),
@@ -290,8 +323,13 @@ onBeforeUnmount(() => {
         </div>
         <p>{{ task.message }}</p>
         <div class="task-meta">
-          <span>{{ task.provider || task.node_type }}</span>
-          <span v-if="task.duration_ms !== undefined">{{ task.duration_ms }} ms</span>
+          <span class="task-provider" :title="task.provider || task.node_type">{{ task.provider || task.node_type }}</span>
+          <div class="task-meta-sub">
+            <span v-if="task.created_at" class="task-time" :title="`调用时间：${formatFullTime(task.created_at)}`">
+              调用 {{ formatLogTime(task.created_at) }}
+            </span>
+            <span v-if="task.duration_ms !== undefined" class="task-duration">{{ task.duration_ms }} ms</span>
+          </div>
         </div>
       </div>
     </div>
@@ -833,9 +871,33 @@ onBeforeUnmount(() => {
 
 .task-meta {
   display: flex;
-  justify-content: space-between;
+  flex-direction: column;
+  gap: 3px;
   font-size: 11px;
   color: var(--muted);
+  margin-top: 2px;
+}
+
+.task-provider {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.task-meta-sub {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  font-variant-numeric: tabular-nums;
+}
+
+.task-time {
+  color: rgba(255, 255, 255, 0.56);
+}
+
+.task-duration {
+  margin-left: auto;
 }
 
 .spin {

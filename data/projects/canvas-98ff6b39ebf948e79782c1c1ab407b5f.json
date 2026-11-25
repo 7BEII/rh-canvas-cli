@@ -3,12 +3,12 @@
   "id": "canvas-98ff6b39ebf948e79782c1c1ab407b5f",
   "name": "LibTV 复刻 · Group 9 精简版",
   "created_at": "2026-11-24T15:03:52.738194+00:00",
-  "updated_at": "2026-11-25T03:44:16.046753+00:00",
+  "updated_at": "2026-11-25T07:34:50.083066+00:00",
   "node_count": 9,
   "snapshot": {
     "format": "rh-canvas",
     "version": 1,
-    "exportedAt": "2026-11-25T03:44:16.039Z",
+    "exportedAt": "2026-11-25T07:34:50.079Z",
     "schemaVersion": 1,
     "canvas": {
       "cards": [
@@ -86,6 +86,7 @@
           "id": "g9-1-i-FlacW32V0c",
           "model": "tensor:NANO_BANANA_2",
           "name": "人物三视图",
+          "needsUpdate": false,
           "prompt": "一张五格人像合成图，纯白色简洁背景，专业柔光布光，光影柔和均匀，画面写实高清，皮肤质感细腻真实，色调清透自然，图中不出现任何文字、字母、水印或标注。\n\n人物脸部特征：完全参考 @图片1  @图片2  中的人物脸。\n\n发型与头饰：参考 @图片3  ，栗棕色长直发，发丝柔顺光泽，中分空气感刘海垂落额前，发丝略带凌乱蓬松质感自然不做作，头顶点缀蓝色绢花发饰组成花簇造型，花瓣层叠饱满带有露珠质感光泽，耳侧垫戴垂坠水钻耳饰，整体发型造型融合古风与自然随性感。\n\n服装与配饰：参考 @图片3  ，内穿白色立领交领上衣，衣料质感柔软带有暗纹提花，衣袖宽大呈喇叭状垂坠，双手自然交叠置于身前；外系蓝白色提花长裙，裙身印染水墨牡丹纹样蓝白相间，腰间系宽幅蓝色绸缎腰带打结垂落，腰带末端自然飘垂至裙摆，颈部佩戴蓝色宝石串珠项链，耳垫水钻耳坠，脚穿白色绣花布鞋，整体造型清新雅致，融合古风元素与少女感。\n\n\n姿态要求（双手交叠自然下垂，站姿端庄含蓄）：\n第一格：正面全身站姿，人物面向镜头端正站立，双手交叠置于腰前，展示交领上衣领口、腰间系带及裙身纹样细节\n第二格：正侧面全身站姿，头部微侧看向镜头一侧，站姿与第一格呼应，展示上衣袖型的宽松垂坠感与裙摆层叠的侧面轮廓\n第三格：背面全身站姿，人物背对镜头，展示发型造型背面细节、上衣背部剪裁及腰带打结后的垂坠效果\n第四格：面部特写，聚焦五官妆容与笑容细节，眼神平视镜头微微含笑，展现肌肤光泽与自然唇色\n第五格：头饰细节特写，聚焦蓝色绢花发饰的层叠花瓣结构、刘海发丝质感及耳饰项链的精致工艺\n\n\n整体风格：写实清新人像摄影质感，8K高清，纯白背景突出人物与服饰细节，提花面料纹样与刺绣细节清晰可见，光影自然柔和，人物姿态端庄中带有青春活力，无夸张滤镜与过度美颜痕迹，画面中绝对不出现任何文字说明、标签或水印。",
           "refs": [
             {
@@ -121,13 +122,12 @@
             }
           ],
           "selected": false,
+          "staleReason": "",
           "status": "done",
           "type": "image",
           "width": 250,
           "x": 408,
-          "y": 194,
-          "needsUpdate": false,
-          "staleReason": ""
+          "y": 194
         },
         {
           "activeResultIndex": 0,
@@ -221,6 +221,7 @@
           "aspect": "9:16",
           "batchCount": 1,
           "duration": 15,
+          "error": "OUTPUT_AUDIO_BLOCKED: The generated content did not pass the safety review. Adjust the prompt or input and try again.",
           "generateAudio": true,
           "height": 290,
           "id": "g9-2-v-ChztCb1cYu",
@@ -263,15 +264,14 @@
           "type": "video",
           "videoMode": "omni",
           "width": 220,
-          "x": 713,
-          "y": 199,
-          "error": "OUTPUT_AUDIO_BLOCKED: The generated content did not pass the safety review. Adjust the prompt or input and try again."
+          "x": 755,
+          "y": 190
         }
       ],
       "seq": 10,
       "viewport": {
-        "x": 144.0055102897977,
-        "y": 134.255129485299,
+        "x": 118.44996829761021,
+        "y": 120.92180123822868,
         "z": 1.184
       }
     }
