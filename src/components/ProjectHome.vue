@@ -26,7 +26,27 @@ const projectsStore = useProjectsStore();
 const canvasStore = useCanvasStore();
 
 const busyId = ref<string | null>(null);
+const restarting = ref(false);
 const fileInput = ref<HTMLInputElement | null>(null);
+
+async function handleRestartServer() {
+  if (restarting.value) return;
+  restarting.value = true;
+  try {
+    canvasStore.showToast('正在重启本地后端服务…');
+    const ok = await apiClient.restartServerAndWait();
+    if (ok) {
+      canvasStore.showToast('服务重启完成，正在刷新页面…');
+      window.setTimeout(() => window.location.reload(), 300);
+    } else {
+      canvasStore.showToast('等待服务重连超时，请检查本地 Python 进程后刷新');
+      restarting.value = false;
+    }
+  } catch (err: any) {
+    canvasStore.showToast(`重启失败：${err?.message || '未知错误'}`);
+    restarting.value = false;
+  }
+}
 
 async function handleCreateBlank() {
   if (busyId.value) return;
@@ -219,6 +239,16 @@ function formatTime(iso: string) {
           <i class="dot" />
           {{ projectsStore.backendOnline ? '本地服务已连接' : '后端未连接' }}
         </span>
+        <button
+          class="btn"
+          type="button"
+          :disabled="restarting"
+          title="重启本地 Python 后端服务并刷新页面"
+          @click="handleRestartServer"
+        >
+          <RefreshCw :size="14" :class="{ spin: restarting }" />
+          {{ restarting ? '重启中…' : '重启服务' }}
+        </button>
         <button class="btn" type="button" @click="emit('open-settings')">
           <Settings :size="15" />
           设置
@@ -734,5 +764,15 @@ function formatTime(iso: string) {
   flex-direction: column;
   align-items: center;
   gap: 10px;
+}
+
+.spin {
+  animation: spin 0.9s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
 }
 </style>

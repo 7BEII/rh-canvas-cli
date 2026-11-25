@@ -3,40 +3,18 @@
   "id": "canvas-98ff6b39ebf948e79782c1c1ab407b5f",
   "name": "LibTV 复刻 · Group 9 精简版",
   "created_at": "2026-11-24T15:03:52.738194+00:00",
-  "updated_at": "2026-11-25T01:54:39.721054+00:00",
+  "updated_at": "2026-11-25T03:44:16.046753+00:00",
   "node_count": 9,
   "snapshot": {
     "format": "rh-canvas",
     "version": 1,
-    "exportedAt": "2026-11-25T01:54:39.718Z",
+    "exportedAt": "2026-11-25T03:44:16.039Z",
     "schemaVersion": 1,
     "canvas": {
       "cards": [
         {
           "activeResultIndex": 0,
-          "height": 92,
-          "id": "g9-1-i-FlacW32V0c",
-          "mediaKind": "image",
-          "name": "人物三视图",
-          "refs": [],
-          "results": [
-            {
-              "kind": "image",
-              "label": "人物三视图",
-              "name": "libtv-g9-i-FlacW32V0c.png",
-              "url": "/api/assets/input/libtv-g9-i-FlacW32V0c.png"
-            }
-          ],
-          "selected": false,
-          "status": "done",
-          "type": "source",
-          "width": 156,
-          "x": 214,
-          "y": 10
-        },
-        {
-          "activeResultIndex": 0,
-          "height": 148,
+          "height": 152,
           "id": "g9-3-i-JDn8QUPa0x",
           "mediaKind": "image",
           "name": "人脸参考1",
@@ -52,13 +30,13 @@
           "selected": false,
           "status": "done",
           "type": "source",
-          "width": 148,
+          "width": 150,
           "x": 60,
-          "y": 142
+          "y": 20
         },
         {
           "activeResultIndex": 0,
-          "height": 148,
+          "height": 152,
           "id": "g9-4-i-0vQc8NLYLk",
           "mediaKind": "image",
           "name": "人脸参考2",
@@ -74,13 +52,13 @@
           "selected": false,
           "status": "done",
           "type": "source",
-          "width": 148,
-          "x": 224,
-          "y": 142
+          "width": 150,
+          "x": 230,
+          "y": 20
         },
         {
           "activeResultIndex": 0,
-          "height": 148,
+          "height": 152,
           "id": "g9-5-i-kFsgZ6e0fG",
           "mediaKind": "image",
           "name": "造型参考",
@@ -96,9 +74,60 @@
           "selected": false,
           "status": "done",
           "type": "source",
-          "width": 148,
-          "x": 388,
-          "y": 142
+          "width": 150,
+          "x": 401,
+          "y": 20
+        },
+        {
+          "activeResultIndex": 1,
+          "aspect": "16:9",
+          "error": "",
+          "height": 210,
+          "id": "g9-1-i-FlacW32V0c",
+          "model": "tensor:NANO_BANANA_2",
+          "name": "人物三视图",
+          "prompt": "一张五格人像合成图，纯白色简洁背景，专业柔光布光，光影柔和均匀，画面写实高清，皮肤质感细腻真实，色调清透自然，图中不出现任何文字、字母、水印或标注。\n\n人物脸部特征：完全参考 @图片1  @图片2  中的人物脸。\n\n发型与头饰：参考 @图片3  ，栗棕色长直发，发丝柔顺光泽，中分空气感刘海垂落额前，发丝略带凌乱蓬松质感自然不做作，头顶点缀蓝色绢花发饰组成花簇造型，花瓣层叠饱满带有露珠质感光泽，耳侧垫戴垂坠水钻耳饰，整体发型造型融合古风与自然随性感。\n\n服装与配饰：参考 @图片3  ，内穿白色立领交领上衣，衣料质感柔软带有暗纹提花，衣袖宽大呈喇叭状垂坠，双手自然交叠置于身前；外系蓝白色提花长裙，裙身印染水墨牡丹纹样蓝白相间，腰间系宽幅蓝色绸缎腰带打结垂落，腰带末端自然飘垂至裙摆，颈部佩戴蓝色宝石串珠项链，耳垫水钻耳坠，脚穿白色绣花布鞋，整体造型清新雅致，融合古风元素与少女感。\n\n\n姿态要求（双手交叠自然下垂，站姿端庄含蓄）：\n第一格：正面全身站姿，人物面向镜头端正站立，双手交叠置于腰前，展示交领上衣领口、腰间系带及裙身纹样细节\n第二格：正侧面全身站姿，头部微侧看向镜头一侧，站姿与第一格呼应，展示上衣袖型的宽松垂坠感与裙摆层叠的侧面轮廓\n第三格：背面全身站姿，人物背对镜头，展示发型造型背面细节、上衣背部剪裁及腰带打结后的垂坠效果\n第四格：面部特写，聚焦五官妆容与笑容细节，眼神平视镜头微微含笑，展现肌肤光泽与自然唇色\n第五格：头饰细节特写，聚焦蓝色绢花发饰的层叠花瓣结构、刘海发丝质感及耳饰项链的精致工艺\n\n\n整体风格：写实清新人像摄影质感，8K高清，纯白背景突出人物与服饰细节，提花面料纹样与刺绣细节清晰可见，光影自然柔和，人物姿态端庄中带有青春活力，无夸张滤镜与过度美颜痕迹，画面中绝对不出现任何文字说明、标签或水印。",
+          "refs": [
+            {
+              "from": "g9-3-i-JDn8QUPa0x",
+              "kind": "image",
+              "label": "人脸参考1"
+            },
+            {
+              "from": "g9-4-i-0vQc8NLYLk",
+              "kind": "image",
+              "label": "人脸参考2"
+            },
+            {
+              "from": "g9-5-i-kFsgZ6e0fG",
+              "kind": "image",
+              "label": "造型参考"
+            }
+          ],
+          "results": [
+            {
+              "kind": "image",
+              "label": "人物三视图（原画布参考）",
+              "name": "libtv-g9-i-FlacW32V0c.png",
+              "url": "/api/assets/input/libtv-g9-i-FlacW32V0c.png"
+            },
+            {
+              "dims": "2752x1536",
+              "kind": "image",
+              "label": "NANO_BANANA_2 · Tensor",
+              "name": "tensor-nano_banana_2-fea8efb5.jpeg",
+              "path": "C:\\pandy\\github\\美图专用-matrix\\rh-canvas-cli\\data\\outputs\\images\\tensor-nano_banana_2-fea8efb5.jpeg",
+              "url": "/api/outputs/images/tensor-nano_banana_2-fea8efb5.jpeg"
+            }
+          ],
+          "selected": false,
+          "status": "done",
+          "type": "image",
+          "width": 250,
+          "x": 408,
+          "y": 194,
+          "needsUpdate": false,
+          "staleReason": ""
         },
         {
           "activeResultIndex": 0,
@@ -118,13 +147,13 @@
           "selected": false,
           "status": "done",
           "type": "source",
-          "width": 148,
-          "x": 383,
-          "y": 324
+          "width": 156,
+          "x": 60,
+          "y": 280
         },
         {
           "activeResultIndex": 0,
-          "height": 100,
+          "height": 104,
           "id": "g9-8-a-fcgBBJSp2V",
           "mediaKind": "audio",
           "name": "背景音乐",
@@ -140,13 +169,13 @@
           "selected": false,
           "status": "done",
           "type": "source",
-          "width": 156,
-          "x": 60,
-          "y": 318
+          "width": 164,
+          "x": 236,
+          "y": 280
         },
         {
           "activeResultIndex": 0,
-          "height": 198,
+          "height": 196,
           "id": "g9-6-i-S2Ga83bYb1",
           "mediaKind": "image",
           "name": "小羊参考",
@@ -162,13 +191,13 @@
           "selected": false,
           "status": "done",
           "type": "source",
-          "width": 148,
+          "width": 150,
           "x": 60,
-          "y": 510
+          "y": 456
         },
         {
           "activeResultIndex": 0,
-          "height": 198,
+          "height": 196,
           "id": "g9-9-i-yMY8RoKxi3",
           "mediaKind": "image",
           "name": "湖畔栈道场景",
@@ -184,20 +213,19 @@
           "selected": false,
           "status": "done",
           "type": "source",
-          "width": 148,
-          "x": 224,
-          "y": 510
+          "width": 150,
+          "x": 230,
+          "y": 456
         },
         {
           "aspect": "9:16",
           "batchCount": 1,
           "duration": 15,
-          "error": "",
           "generateAudio": true,
           "height": 290,
           "id": "g9-2-v-ChztCb1cYu",
           "localMedia": [],
-          "model": "tensor:SEEDANCE_2_5_FLASH",
+          "model": "seedance-2.0-mini",
           "name": "视频成片",
           "prompt": "参考视频 @视频1  深度信息及镜头切换节奏，整体的音乐使用 @音频1  这一段音乐；\n \n@图片3 「人物三视图」节点输出的五宫格人物参考图 （人物三视图）为女子人物形象， @图片1  为小羊形象，人物和小羊特征以 @图片3 「人物三视图」节点输出的五宫格人物参考图 @图片1  为唯一标准，不可自行更改。\n \n分镜执行（动作/运镜/场景严格参照 @视频1  对应时间段，人物和小羊形象严格参照 @图片3 「人物三视图」节点输出的五宫格人物参考图 @图片1  ）：\n \n段落 1 ｜ 0.0–4.8s（4.8s）抱羊入画 · 转身\n@视频1  对应画面， @图片3 「人物三视图」节点输出的五宫格人物参考图 为人物 @图片1  为小羊， @图片2  为这一段场景\n景别/机位：中景，平视，随人物入画后轻微前移（全景向中景推进）\n画面：人物从右侧走入栈道站定，怀抱白羊，由侧对湖景转身正对镜头、低头看羊；木护栏、蓝湖、残雪山林，前景松枝\n \n段落 2 ｜ 4.8–8.2s（3.4s）小羊舔脸\n@视频1  对应画面， @图片3 「人物三视图」节点输出的五宫格人物参考图 为人物 @图片1  为小羊， @图片2  为这一段场景\n景别/机位：中近景，平视，镜头缓慢环绕、小幅推近\n画面：人物调整抱羊姿势，戴红白背带的小羊扭头凑近、伸舌舔舐人物脸颊，人物微微低头靠近；背景湖林虚化\n\n段落 3 ｜ 8.2–15.0s（6.8s）近景特写 · 微笑对望\n@视频1  对应画面， @图片3 「人物三视图」节点输出的五宫格人物参考图 为人物 @图片1  为小羊， @图片2  为这一段场景\n景别/机位：近景/特写，平视，持续缓慢推近，最终聚焦面部\n画面：人物将小羊抱稳胸前、微笑直视镜头并轻歪头，小羊前爪搭手臂、脸朝镜头、颈挂金铃；背景湖林完全虚化为蓝绿色块\n \n约束： @图片3 「人物三视图」节点输出的五宫格人物参考图 中的发色/服装颜色为固定值不可修改；禁止出现与 @图片3 「人物三视图」节点输出的五宫格人物参考图 @图片1  不符的第二种人物形象。",
           "quality": "standard",
@@ -228,23 +256,23 @@
               "label": "背景音乐"
             }
           ],
-          "resolution": "480p",
+          "resolution": "720p",
           "results": [],
           "selected": false,
-          "status": "running",
-          "stylePreset": "古风奇幻",
+          "status": "error",
           "type": "video",
           "videoMode": "omni",
-          "width": 210,
-          "x": 561,
-          "y": 151
+          "width": 220,
+          "x": 713,
+          "y": 199,
+          "error": "OUTPUT_AUDIO_BLOCKED: The generated content did not pass the safety review. Adjust the prompt or input and try again."
         }
       ],
       "seq": 10,
       "viewport": {
-        "x": 5.633604879439645,
-        "y": 148.11342621365452,
-        "z": 1.137
+        "x": 144.0055102897977,
+        "y": 134.255129485299,
+        "z": 1.184
       }
     }
   }

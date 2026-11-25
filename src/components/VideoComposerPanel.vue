@@ -563,7 +563,7 @@ const estimatedPrice = computed(() => {
   const res = (props.card.resolution || '720p').toLowerCase();
   const dur = Math.max(4, Number(props.card.duration || 15));
   const batch = Math.max(1, Number(props.card.batchCount || 1));
-  const modelId = props.card.model || 'seedance-2.0-mini';
+  const modelId = (props.card.model || 'seedance-2.0-mini').replace(/^rh:/, '');
   const hasVideoRef = refItems.value.some((r) => r.kind === 'video');
 
   const modelMul: Record<string, number> = {

@@ -17,13 +17,95 @@ from .asset_store import mime_for_suffix
 DEFAULT_RH_BASE = "https://www.runninghub.cn"
 UPLOAD_PATH = "/openapi/v2/media/upload/binary"
 QUERY_PATH = "/openapi/v2/query"
-SEEDANCE_I2V_PATH = "/openapi/v2/rhart-video/sparkvideo-2.0-mini/image-to-video"
-SEEDANCE_MULTIMODAL_PATH = "/openapi/v2/rhart-video/sparkvideo-2.0-mini/multimodal-video"
 H3_T2V_PATH = "/openapi/v2/minimax/hailuo-h3/text-to-video"
 H3_I2V_PATH = "/openapi/v2/minimax/hailuo-h3/image-to-video"
 H3_MULTIMODAL_PATH = "/openapi/v2/minimax/hailuo-h3/multimodal-to-video"
 WAN3_T2V_PATH = "/openapi/v2/alibaba/wan-3.0/text-to-video"
 WAN3_I2V_PATH = "/openapi/v2/alibaba/wan-3.0/image-to-video"
+
+SEEDANCE_MODEL_SPECS: dict[str, dict[str, Any]] = {
+    "seedance-2.5": {
+        "t2v": "/openapi/v2/bytedance/seedance-2.5-token/text-to-video",
+        "i2v": "/openapi/v2/bytedance/seedance-2.5-token/image-to-video",
+        "multimodal": "/openapi/v2/bytedance/seedance-2.5-token/multimodal-video",
+        "max_duration": 30,
+        "resolutions": {"480p", "720p", "1080p"},
+        "max_images": 30,
+        "max_videos": 10,
+        "max_audios": 10,
+        "is_v25": True,
+        "display_name": "bytedance/seedance-2.5 (RunningHub)",
+    },
+    "seedance-2.5-flash": {
+        "t2v": "/openapi/v2/bytedance/seedance-2.5-flash-token/text-to-video",
+        "i2v": "/openapi/v2/bytedance/seedance-2.5-flash-token/image-to-video",
+        "multimodal": "/openapi/v2/bytedance/seedance-2.5-flash-token/multimodal-video",
+        "max_duration": 30,
+        "resolutions": {"480p", "720p"},
+        "max_images": 10,
+        "max_videos": 5,
+        "max_audios": 5,
+        "is_v25": True,
+        "display_name": "bytedance/seedance-2.5-flash (RunningHub)",
+    },
+    "seedance-2.0": {
+        "t2v": "/openapi/v2/rhart-video/sparkvideo-2.0/text-to-video",
+        "i2v": "/openapi/v2/rhart-video/sparkvideo-2.0/image-to-video",
+        "multimodal": "/openapi/v2/rhart-video/sparkvideo-2.0/multimodal-video",
+        "max_duration": 15,
+        "resolutions": {"480p", "720p", "1080p"},
+        "max_images": 9,
+        "max_videos": 3,
+        "max_audios": 3,
+        "is_v25": False,
+        "display_name": "rhart-video/sparkvideo-2.0 (RunningHub)",
+    },
+    "seedance-2.0-fast": {
+        "t2v": "/openapi/v2/rhart-video/sparkvideo-2.0-fast/text-to-video",
+        "i2v": "/openapi/v2/rhart-video/sparkvideo-2.0-fast/image-to-video",
+        "multimodal": "/openapi/v2/rhart-video/sparkvideo-2.0-fast/multimodal-video",
+        "max_duration": 15,
+        "resolutions": {"480p", "720p", "1080p"},
+        "max_images": 9,
+        "max_videos": 3,
+        "max_audios": 3,
+        "is_v25": False,
+        "display_name": "rhart-video/sparkvideo-2.0-fast (RunningHub)",
+    },
+    "seedance-2.0-mini": {
+        "t2v": "/openapi/v2/rhart-video/sparkvideo-2.0-mini/text-to-video",
+        "i2v": "/openapi/v2/rhart-video/sparkvideo-2.0-mini/image-to-video",
+        "multimodal": "/openapi/v2/rhart-video/sparkvideo-2.0-mini/multimodal-video",
+        "max_duration": 15,
+        "resolutions": {"480p", "720p", "1080p"},
+        "max_images": 9,
+        "max_videos": 3,
+        "max_audios": 3,
+        "is_v25": False,
+        "display_name": "seedance-2.0-mini (RunningHub)",
+    },
+}
+
+
+def resolve_seedance_spec(model: str) -> dict[str, Any]:
+    raw = (model or "").strip().lower()
+    for prefix in ("rh:", "runninghub:", "tensor:"):
+        if raw.startswith(prefix):
+            raw = raw[len(prefix):]
+    norm = raw.replace("_", "-")
+    if norm in SEEDANCE_MODEL_SPECS:
+        return SEEDANCE_MODEL_SPECS[norm]
+    if "2.5" in norm or "2-5" in norm:
+        if "flash" in norm or "fast" in norm:
+            return SEEDANCE_MODEL_SPECS["seedance-2.5-flash"]
+        return SEEDANCE_MODEL_SPECS["seedance-2.5"]
+    if "2.0" in norm or "2-0" in norm:
+        if "mini" in norm:
+            return SEEDANCE_MODEL_SPECS["seedance-2.0-mini"]
+        if "fast" in norm or "flash" in norm:
+            return SEEDANCE_MODEL_SPECS["seedance-2.0-fast"]
+        return SEEDANCE_MODEL_SPECS["seedance-2.0"]
+    return SEEDANCE_MODEL_SPECS["seedance-2.0-mini"]
 
 PENDING_STATUSES = {"QUEUED", "RUNNING", "PENDING", "PROCESSING"}
 SUCCESS_STATUSES = {"SUCCESS", "COMPLETED", "SUCCEEDED"}
@@ -41,7 +123,7 @@ def resolve_rh_base_url(config: dict[str, Any]) -> str:
 
 
 class RunningHubVideoClient:
-    """RunningHub OpenAPI v2 client for Seedance 2.0 Mini (sparkvideo-2.0-mini) & Hailuo H3."""
+    """RunningHub OpenAPI v2 client for Seedance 2.0/2.5 series, Alibaba Wan 3.0 & Hailuo H3."""
 
     def __init__(self, api_key: str, base_url: str = DEFAULT_RH_BASE) -> None:
         self.api_key = api_key.strip()
@@ -227,12 +309,22 @@ class RunningHubVideoClient:
         m_low = (model or "").lower()
         is_wan3 = "wan-3" in m_low or "wan3" in m_low
         is_h3 = "h3" in m_low or "hailuo" in m_low
+        sd_spec = None if (is_wan3 or is_h3) else resolve_seedance_spec(model)
+
         res_clean = str(resolution or "720p").strip().lower()
         if res_clean not in {"480p", "720p", "1080p"}:
             res_clean = "720p"
-        dur_int = max(4, min(15, int(duration or 5)))
+        if sd_spec is not None and res_clean not in sd_spec["resolutions"]:
+            res_clean = "720p"
+
+        max_dur = sd_spec["max_duration"] if sd_spec is not None else 15
+        dur_int = max(4, min(max_dur, int(duration or 5)))
         dur_str = str(dur_int)
         ratio = "adaptive" if aspect in ("", "自适应", "adaptive") else (aspect if aspect in VALID_RATIOS else "adaptive")
+
+        max_imgs = sd_spec["max_images"] if sd_spec is not None else 9
+        max_vids = sd_spec["max_videos"] if sd_spec is not None else 3
+        max_auds = sd_spec["max_audios"] if sd_spec is not None else 3
 
         img_urls: list[str] = []
         vid_urls: list[str] = []
@@ -245,11 +337,11 @@ class RunningHubVideoClient:
             if not u:
                 continue
             k = str(s.get("kind") or "image")
-            if k == "image" and len(img_urls) < 9:
+            if k == "image" and len(img_urls) < max_imgs:
                 img_urls.append(u)
-            elif k == "video" and len(vid_urls) < 3:
+            elif k == "video" and len(vid_urls) < max_vids:
                 vid_urls.append(u)
-            elif k == "audio" and len(aud_urls) < 3:
+            elif k == "audio" and len(aud_urls) < max_auds:
                 aud_urls.append(u)
 
         if is_wan3:
@@ -309,9 +401,24 @@ class RunningHubVideoClient:
                     "ratio": ratio,
                 }
         else:
-            use_i2v = mode in {"firstFrame", "firstLastFrame"} and bool(img_urls)
-            if use_i2v:
-                api_url = f"{self.base_url}{SEEDANCE_I2V_PATH}"
+            assert sd_spec is not None
+            is_v25 = bool(sd_spec["is_v25"])
+            use_t2v = mode == "t2v" or (not img_urls and not vid_urls)
+            use_i2v = (not use_t2v) and mode in {"firstFrame", "firstLastFrame"} and bool(img_urls)
+            if use_t2v:
+                api_url = f"{self.base_url}{sd_spec['t2v']}"
+                body = {
+                    "prompt": prompt.strip() or "生成一段高质量视频",
+                    "resolution": res_clean,
+                    "duration": dur_str,
+                    "generateAudio": bool(generate_audio),
+                    "ratio": ratio,
+                    "webSearch": False,
+                    "returnLastFrame": False,
+                    "seed": -1,
+                }
+            elif use_i2v:
+                api_url = f"{self.base_url}{sd_spec['i2v']}"
                 body = {
                     "prompt": prompt.strip() or None,
                     "resolution": res_clean,
@@ -326,9 +433,7 @@ class RunningHubVideoClient:
                     "seed": -1,
                 }
             else:
-                if not img_urls and not vid_urls:
-                    raise ValueError("Seedance 2.0 Mini 多模态模式请至少连接一张参考图或一段参考视频（纯文生视频可切换阿里 Wan 3.0 或海螺 H3）")
-                api_url = f"{self.base_url}{SEEDANCE_MULTIMODAL_PATH}"
+                api_url = f"{self.base_url}{sd_spec['multimodal']}"
                 body = {
                     "prompt": prompt.strip() or "生成一段高质量视频",
                     "resolution": res_clean,
@@ -343,6 +448,12 @@ class RunningHubVideoClient:
                     "returnLastFrame": False,
                     "seed": -1,
                 }
+            if is_v25:
+                body["watermark"] = False
+                body["bitrateMode"] = "standard"
+                body["outputFormat"] = "mp4"
+                if not use_i2v:
+                    body["webSearch"] = False
 
         resp = requests.post(api_url, headers=self._headers(json_content=True), json=body, timeout=180)
         try:
@@ -414,7 +525,11 @@ class RunningHubVideoClient:
             "model": (
                 "alibaba/wan-3.0 (RunningHub)"
                 if is_wan3
-                else ("minimax/hailuo-h3 (RunningHub)" if is_h3 else "seedance-2.0-mini (RunningHub)")
+                else (
+                    "minimax/hailuo-h3 (RunningHub)"
+                    if is_h3
+                    else (sd_spec["display_name"] if sd_spec is not None else "seedance-2.0-mini (RunningHub)")
+                )
             ),
             "remote_url": video_url,
             "path": target,

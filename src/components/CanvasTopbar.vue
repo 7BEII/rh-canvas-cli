@@ -11,6 +11,7 @@ import {
   Loader2,
   Sparkles,
   ChevronLeft,
+  RotateCw,
 } from 'lucide-vue-next';
 import { apiClient } from '@/api/client';
 import { useCanvasStore } from '@/stores/canvas';
@@ -32,6 +33,7 @@ const projects = useProjectsStore();
 const editingName = ref(false);
 const draftName = ref('');
 const elapsedSec = ref(0);
+const restarting = ref(false);
 let timer: ReturnType<typeof setInterval> | null = null;
 
 const runningCard = computed(() => canvas.cards.find((c) => c.status === 'running') || null);
@@ -107,6 +109,29 @@ async function handleExportZip() {
     canvas.showToast(`导出失败：${err?.message || '未知错误'}`);
   }
 }
+
+async function handleRestartServer() {
+  if (restarting.value) return;
+  if (isAnyRunning.value && !window.confirm('当前有节点正在运行，重启后端服务会中断本地任务，确定重启吗？')) {
+    return;
+  }
+  restarting.value = true;
+  try {
+    await canvas.persistNow(true);
+    canvas.showToast('正在重启本地后端服务…');
+    const ok = await apiClient.restartServerAndWait();
+    if (ok) {
+      canvas.showToast('服务重启完成，正在刷新页面…');
+      window.setTimeout(() => window.location.reload(), 300);
+    } else {
+      canvas.showToast('等待服务重连超时，请检查本地 Python 进程后刷新');
+      restarting.value = false;
+    }
+  } catch (err: any) {
+    canvas.showToast(`重启失败：${err?.message || '未知错误'}`);
+    restarting.value = false;
+  }
+}
 </script>
 
 <template>
@@ -173,6 +198,16 @@ async function handleExportZip() {
 
       <button class="pill-icon-btn" type="button" title="历史记录与成片" @click="emit('toggle-tasks')">
         <Clock :size="15" />
+      </button>
+
+      <button
+        class="pill-icon-btn"
+        type="button"
+        :disabled="restarting"
+        :title="restarting ? '正在重启后端服务…' : '重启本地后端服务'"
+        @click="handleRestartServer"
+      >
+        <RotateCw :size="15" :class="{ spin: restarting }" />
       </button>
 
       <button class="pill-icon-btn" type="button" title="API 与全局设置" @click="emit('open-settings')">

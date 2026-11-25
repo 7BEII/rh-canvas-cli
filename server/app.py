@@ -1,8 +1,13 @@
 from __future__ import annotations
 
 import os
+import subprocess
+import sys
+import threading
+import time
 from pathlib import Path
 from typing import Any
+from uuid import uuid4
 
 from flask import Flask, jsonify, request, send_file, send_from_directory
 
@@ -23,6 +28,44 @@ from .zip_bundle import (
 ROOT_DIR = Path(__file__).resolve().parent.parent
 DATA_DIR = ROOT_DIR / "data"
 DIST_DIR = ROOT_DIR / "dist"
+SERVER_BOOT_ID = uuid4().hex[:10]
+
+
+def _spawn_relauncher(host: str, port: int) -> None:
+    """Spawn a detached helper that waits for the port to close, then starts a fresh server."""
+    relauncher_code = (
+        "import os, socket, subprocess, sys, time\n"
+        f"host = {host!r}\n"
+        f"port = {int(port)}\n"
+        f"root = {str(ROOT_DIR)!r}\n"
+        "deadline = time.monotonic() + 8.0\n"
+        "while time.monotonic() < deadline:\n"
+        "    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)\n"
+        "    try:\n"
+        "        s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)\n"
+        "        s.bind((host, port))\n"
+        "        s.close()\n"
+        "        break\n"
+        "    except OSError:\n"
+        "        s.close()\n"
+        "        time.sleep(0.15)\n"
+        "kwargs = {'cwd': root, 'env': os.environ.copy()}\n"
+        "if os.name == 'nt':\n"
+        "    kwargs['creationflags'] = subprocess.DETACHED_PROCESS | subprocess.CREATE_NEW_PROCESS_GROUP | subprocess.CREATE_NO_WINDOW\n"
+        "else:\n"
+        "    kwargs['start_new_session'] = True\n"
+        "subprocess.Popen([sys.executable, '-m', 'server.app'], **kwargs)\n"
+    )
+    kwargs: dict[str, Any] = {"cwd": str(ROOT_DIR), "env": os.environ.copy()}
+    if os.name == "nt":
+        kwargs["creationflags"] = (
+            subprocess.DETACHED_PROCESS
+            | subprocess.CREATE_NEW_PROCESS_GROUP
+            | subprocess.CREATE_NO_WINDOW
+        )
+    else:
+        kwargs["start_new_session"] = True
+    subprocess.Popen([sys.executable, "-c", relauncher_code], **kwargs)
 
 
 def _json_error(error: Exception | str, status: int = 400):
@@ -50,6 +93,7 @@ def create_app() -> Flask:
                 "success": True,
                 "service": "rh-canvas-cli",
                 "version": "1.0.0",
+                "boot_id": SERVER_BOOT_ID,
                 "output_dir": str(settings.output_dir()),
                 "has_ark_key": bool(resolve_ark_key(cfg)),
                 "has_runninghub_key": bool(str(cfg.get("runninghub_api_key") or "").strip()),
@@ -57,6 +101,21 @@ def create_app() -> Flask:
                 "has_llm_key": bool(str(cfg.get("llm_api_key") or "").strip()),
             }
         )
+
+    @app.post("/api/server/restart")
+    def restart_server():
+        host = os.environ.get("RH_CANVAS_HOST", "127.0.0.1")
+        port = int(os.environ.get("RH_CANVAS_PORT", "5188"))
+
+        def _do_restart() -> None:
+            time.sleep(0.35)
+            try:
+                _spawn_relauncher(host, port)
+            finally:
+                os._exit(0)
+
+        threading.Thread(target=_do_restart, daemon=True).start()
+        return jsonify({"success": True, "restarting": True, "boot_id": SERVER_BOOT_ID})
 
     @app.post("/api/ark/test")
     def test_ark_connection():

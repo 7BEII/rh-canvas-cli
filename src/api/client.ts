@@ -47,12 +47,43 @@ export const apiClient = {
       success: boolean;
       service: string;
       version: string;
+      boot_id?: string;
       output_dir: string;
       has_ark_key: boolean;
       has_runninghub_key: boolean;
       has_tensor_key: boolean;
       has_llm_key: boolean;
     }>('/health');
+  },
+
+  restartServer() {
+    return request<{ success: boolean; restarting: boolean; boot_id?: string }>('/server/restart', {
+      method: 'POST',
+    });
+  },
+
+  async restartServerAndWait(timeoutMs = 20000): Promise<boolean> {
+    let oldBootId = '';
+    try {
+      const res = await this.restartServer();
+      oldBootId = res.boot_id || '';
+    } catch {
+      // Server may close the socket right as it exits; continue polling
+    }
+    const deadline = Date.now() + timeoutMs;
+    await new Promise((r) => window.setTimeout(r, 900));
+    while (Date.now() < deadline) {
+      try {
+        const h = await this.health();
+        if (h.success && (!oldBootId || !h.boot_id || h.boot_id !== oldBootId)) {
+          return true;
+        }
+      } catch {
+        // Still restarting
+      }
+      await new Promise((r) => window.setTimeout(r, 600));
+    }
+    return false;
   },
 
   testArkConnection(payload?: { ark_api_key?: string; ark_base_url?: string }) {
