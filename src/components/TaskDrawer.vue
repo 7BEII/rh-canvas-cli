@@ -16,6 +16,8 @@ interface OutputMeta {
   stylePreset?: string;
   generateAudio?: boolean;
   provider?: string;
+  duration_ms?: number;
+  started_at?: string;
   created_at?: string;
 }
 
@@ -173,6 +175,19 @@ function formatFullTime(iso?: string) {
   }
 }
 
+function formatDuration(ms?: number) {
+  if (ms === undefined || ms === null || Number.isNaN(ms)) return '';
+  if (ms < 1000) return `${Math.max(0, Math.round(ms))}ms`;
+  const totalSec = ms / 1000;
+  if (totalSec < 60) {
+    return `${totalSec < 10 ? totalSec.toFixed(1) : Math.round(totalSec)}秒`;
+  }
+  const mins = Math.floor(totalSec / 60);
+  const secs = Math.round(totalSec % 60);
+  if (secs === 60) return `${mins + 1}分0秒`;
+  return `${mins}分${secs}秒`;
+}
+
 function openContextMenu(event: MouseEvent, item: OutputItem) {
   ctxMenu.value = {
     x: Math.min(window.innerWidth - 150, event.clientX),
@@ -283,6 +298,13 @@ onBeforeUnmount(() => {
               <Play :size="16" fill="currentColor" />
             </span>
             <span v-if="item.meta" class="meta-badge" title="含生成配置，拖到画布可回溯">可回溯</span>
+            <span
+              v-if="item.meta?.duration_ms !== undefined && item.meta?.duration_ms !== null"
+              class="duration-badge"
+              :title="`调用耗时：${formatDuration(item.meta.duration_ms)} (${item.meta.duration_ms} ms)`"
+            >
+              耗时 {{ formatDuration(item.meta.duration_ms) }}
+            </span>
           </div>
           <div class="out-meta">
             <div class="out-name" :title="item.name">
@@ -328,7 +350,13 @@ onBeforeUnmount(() => {
             <span v-if="task.created_at" class="task-time" :title="`调用时间：${formatFullTime(task.created_at)}`">
               调用 {{ formatLogTime(task.created_at) }}
             </span>
-            <span v-if="task.duration_ms !== undefined" class="task-duration">{{ task.duration_ms }} ms</span>
+            <span
+              v-if="task.duration_ms !== undefined"
+              class="task-duration"
+              :title="`${task.duration_ms} ms`"
+            >
+              耗时 {{ formatDuration(task.duration_ms) }}
+            </span>
           </div>
         </div>
       </div>
@@ -378,7 +406,12 @@ onBeforeUnmount(() => {
             <div class="lightbox-title">
               <Film :size="15" class="lime" />
               <strong>{{ previewItem.name }}</strong>
-              <span class="lightbox-meta">{{ formatSize(previewItem.size) }} · {{ formatTime(previewItem.created_at) }}</span>
+              <span class="lightbox-meta">
+                {{ formatSize(previewItem.size) }} · {{ formatTime(previewItem.created_at) }}
+                <template v-if="previewItem.meta?.duration_ms !== undefined && previewItem.meta?.duration_ms !== null">
+                  · 耗时 {{ formatDuration(previewItem.meta.duration_ms) }}
+                </template>
+              </span>
             </div>
             <div class="lightbox-actions">
               <a :href="previewItem.url" :download="previewItem.name" class="lightbox-dl-btn">
@@ -517,6 +550,19 @@ onBeforeUnmount(() => {
   color: var(--accent);
   font-size: 10px;
   font-weight: 600;
+}
+
+.duration-badge {
+  position: absolute;
+  right: 6px;
+  bottom: 6px;
+  padding: 1px 6px;
+  border-radius: 999px;
+  background: rgba(15, 15, 17, 0.82);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  color: rgba(255, 255, 255, 0.9);
+  font-size: 10px;
+  font-variant-numeric: tabular-nums;
 }
 
 .sky {

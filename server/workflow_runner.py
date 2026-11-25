@@ -122,6 +122,8 @@ class WorkflowRunner:
         card: dict[str, Any],
         provider: str,
         combined_prompt: str,
+        duration_ms: int | None = None,
+        started_at: str | None = None,
     ) -> None:
         """Persist generation config snapshot for an output file so dragging it back onto canvas restores settings."""
         try:
@@ -149,6 +151,8 @@ class WorkflowRunner:
                     "stylePreset": str(card.get("stylePreset") or ""),
                     "generateAudio": card.get("generateAudio", True),
                     "provider": provider,
+                    "duration_ms": duration_ms,
+                    "started_at": started_at or _now_iso(),
                     "created_at": _now_iso(),
                 }
                 # Keep most recent 400 entries
@@ -1146,7 +1150,14 @@ class WorkflowRunner:
                 if p_str and item.get("kind") in ("image", "video"):
                     p_obj = Path(p_str)
                     if p_obj.exists() and p_obj.is_file():
-                        self._save_output_meta(p_obj, card, provider, combined_prompt)
+                        self._save_output_meta(
+                            p_obj,
+                            card,
+                            provider,
+                            combined_prompt,
+                            duration_ms=duration_ms,
+                            started_at=started_at,
+                        )
             task = self._record_task(
                 {
                     "id": f"task-{uuid4().hex[:10]}",
