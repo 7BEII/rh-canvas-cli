@@ -419,6 +419,26 @@ onBeforeUnmount(() => {
   window.removeEventListener('keyup', onKeyUp);
 });
 
+function onBoardDragOver(event: DragEvent) {
+  if (event.dataTransfer?.types?.includes('application/x-rh-history-output')) {
+    event.preventDefault();
+    event.dataTransfer.dropEffect = 'copy';
+  }
+}
+
+function onBoardDrop(event: DragEvent) {
+  const raw = event.dataTransfer?.getData('application/x-rh-history-output');
+  if (!raw) return;
+  event.preventDefault();
+  try {
+    const item = JSON.parse(raw);
+    const world = screenToWorld(event.clientX, event.clientY);
+    canvas.restoreFromHistoryOutput(item, Math.round(world.x - 110), Math.round(world.y - 110));
+  } catch {
+    // ignore malformed drop payload
+  }
+}
+
 defineExpose({ fitToContainer, addNodeAtCenter, handleAutoLayout });
 </script>
 
@@ -435,6 +455,8 @@ defineExpose({ fitToContainer, addNodeAtCenter, handleAutoLayout });
     @pointerdown="onBoardPointerDown"
     @wheel.prevent="onWheel"
     @dblclick="onDoubleClick"
+    @dragover="onBoardDragOver"
+    @drop="onBoardDrop"
   >
     <div
       class="world"

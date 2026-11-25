@@ -34,6 +34,7 @@ export const useCanvasStore = defineStore('canvas', () => {
   const tasks = ref<TaskLogEntry[]>([]);
   const toastMessage = ref('');
   const activeControllers = new Map<string, AbortController>();
+  const runStartedAt = ref<Record<string, number>>({});
   let toastTimer: ReturnType<typeof setTimeout> | null = null;
   let autosaveTimer: ReturnType<typeof setTimeout> | null = null;
 
@@ -469,6 +470,7 @@ export const useCanvasStore = defineStore('canvas', () => {
       ctrl.abort();
       activeControllers.delete(cardId);
     }
+    delete runStartedAt.value[cardId];
     if (card && card.status === 'running') {
       card.status = 'idle';
       card.error = '';
@@ -486,6 +488,7 @@ export const useCanvasStore = defineStore('canvas', () => {
     if (!card) return;
     card.status = 'running';
     card.error = '';
+    runStartedAt.value[cardId] = Date.now();
     const upstream = (card.refs || [])
       .map((ref: CardRef) => {
         const up = cards.value.find((c) => c.id === ref.from);
@@ -519,6 +522,7 @@ export const useCanvasStore = defineStore('canvas', () => {
       throw err;
     } finally {
       activeControllers.delete(cardId);
+      delete runStartedAt.value[cardId];
     }
   }
 
@@ -576,6 +580,75 @@ export const useCanvasStore = defineStore('canvas', () => {
     }
   }
 
+  function restoreFromHistoryOutput(
+    item: {
+      name: string;
+      kind: 'video' | 'image';
+      url: string;
+      meta?: {
+        node_type?: string;
+        name?: string;
+        model?: string;
+        prompt?: string;
+        aspect?: string;
+        resolution?: string;
+        duration?: number;
+        videoMode?: string;
+        stylePreset?: string;
+        generateAudio?: boolean;
+        provider?: string;
+      } | null;
+    },
+    x: number,
+    y: number,
+  ) {
+    const meta = item.meta;
+    if (meta && (meta.node_type === 'image' || meta.node_type === 'video' || meta.prompt || meta.model)) {
+      const targetType = meta.node_type === 'video' || item.kind === 'video' ? 'video' : 'image';
+      const extra: Partial<CanvasCard> = {
+        name: meta.name || (targetType === 'video' ? '回溯视频节点' : '回溯生图节点'),
+        model: meta.model || undefined,
+        prompt: meta.prompt || '',
+        aspect: meta.aspect || undefined,
+        resolution: meta.resolution || undefined,
+        duration: typeof meta.duration === 'number' ? meta.duration : undefined,
+        videoMode: (meta.videoMode as any) || undefined,
+        stylePreset: meta.stylePreset || undefined,
+        generateAudio: meta.generateAudio,
+        status: 'done',
+        results: [
+          {
+            kind: item.kind,
+            label: meta.model ? `${meta.model} · 历史回溯` : item.name,
+            name: item.name,
+            url: item.url,
+          },
+        ],
+        activeResultIndex: 0,
+      };
+      const created = addNode(targetType, x, y, extra);
+      showToast(`已回溯当时生成配置到画布：${created.name}`);
+      return created;
+    }
+
+    const created = addNode('source', x, y, {
+      name: item.name.replace(/\.[^.]+$/, ''),
+      mediaKind: item.kind,
+      status: 'done',
+      results: [
+        {
+          kind: item.kind,
+          label: item.name,
+          name: item.name,
+          url: item.url,
+        },
+      ],
+      activeResultIndex: 0,
+    });
+    showToast(`已拖入历史${item.kind === 'video' ? '视频' : '图片'}到画布（早期文件无保存配置）`);
+    return created;
+  }
+
   return {
     cards,
     viewport,
@@ -594,6 +667,7 @@ export const useCanvasStore = defineStore('canvas', () => {
     persistNow,
     loadSnapshot,
     addNode,
+    restoreFromHistoryOutput,
     removeCards,
     removeSelected,
     selectOnly,
@@ -610,6 +684,7 @@ export const useCanvasStore = defineStore('canvas', () => {
     renameGroup,
     autoLayout,
     fitView,
+    runStartedAt,
     runSingleNode,
     cancelNode,
     runNodesInOrder,

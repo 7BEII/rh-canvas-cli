@@ -1,8 +1,23 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
-import { X, RefreshCw, Download, Play, Film, Trash2, Copy, Check } from 'lucide-vue-next';
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
+import { X, RefreshCw, Download, Play, Film, Image as ImageIcon, Trash2, Copy, Check, RotateCcw } from 'lucide-vue-next';
 import { apiClient } from '@/api/client';
 import { useCanvasStore } from '@/stores/canvas';
+
+interface OutputMeta {
+  node_type?: string;
+  name?: string;
+  model?: string;
+  prompt?: string;
+  aspect?: string;
+  resolution?: string;
+  duration?: number;
+  videoMode?: string;
+  stylePreset?: string;
+  generateAudio?: boolean;
+  provider?: string;
+  created_at?: string;
+}
 
 interface OutputItem {
   name: string;
@@ -12,6 +27,7 @@ interface OutputItem {
   size: number;
   mtime: number;
   created_at: string;
+  meta?: OutputMeta | null;
 }
 
 const emit = defineEmits<{
@@ -20,6 +36,7 @@ const emit = defineEmits<{
 
 const canvas = useCanvasStore();
 const tab = ref<'outputs' | 'logs'>('outputs');
+const mediaFilter = ref<'all' | 'video' | 'image'>('all');
 const loading = ref(false);
 const outputs = ref<OutputItem[]>([]);
 const previewItem = ref<OutputItem | null>(null);
@@ -65,8 +82,33 @@ async function copyTaskMessage(task: { id: string; message: string; status: stri
   }
 }
 
-// Only show real generated output videos (newest first)
 const videoOutputs = computed(() => outputs.value.filter((item) => item.kind === 'video'));
+const imageOutputs = computed(() => outputs.value.filter((item) => item.kind === 'image'));
+const filteredOutputs = computed(() => {
+  if (mediaFilter.value === 'video') return videoOutputs.value;
+  if (mediaFilter.value === 'image') return imageOutputs.value;
+  return outputs.value;
+});
+
+function onOutputDragStart(event: DragEvent, item: OutputItem) {
+  if (!event.dataTransfer) return;
+  event.dataTransfer.setData('application/x-rh-history-output', JSON.stringify(item));
+  event.dataTransfer.effectAllowed = 'copy';
+}
+
+function restoreToCanvasCenter(item: OutputItem) {
+  ctxMenu.value = null;
+  const cx = Math.round((window.innerWidth / 2 - canvas.viewport.x) / canvas.viewport.z - 120);
+  const cy = Math.round((window.innerHeight / 2 - canvas.viewport.y) / canvas.viewport.z - 120);
+  canvas.restoreFromHistoryOutput(item, cx, cy);
+}
+
+watch(
+  () => canvas.tasks.length,
+  () => {
+    void refreshAll();
+  },
+);
 
 async function refreshAll() {
   loading.value = true;
@@ -146,7 +188,7 @@ onBeforeUnmount(() => {
     <header class="drawer-head">
       <div class="tab-pills">
         <button type="button" class="tab-pill" :class="{ active: tab === 'outputs' }" @click="tab = 'outputs'">
-          历史视频 ({{ videoOutputs.length }})
+          历史产物 ({{ outputs.length }})
         </button>
         <button type="button" class="tab-pill" :class="{ active: tab === 'logs' }" @click="tab = 'logs'">
           运行日志
@@ -162,34 +204,58 @@ onBeforeUnmount(() => {
       </div>
     </header>
 
-    <!-- Tab 1: Historical Output Videos Grid -->
+    <!-- Tab 1: Historical Outputs Grid (All / Video / Image) -->
     <div v-if="tab === 'outputs'" class="drawer-body">
-      <div v-if="!videoOutputs.length" class="empty">data/outputs/videos 中暂无历史成片</div>
+      <div class="filter-bar">
+        <button type="button" class="filter-chip" :class="{ active: mediaFilter === 'all' }" @click="mediaFilter = 'all'">
+          全部 ({{ outputs.length }})
+        </button>
+        <button type="button" class="filter-chip" :class="{ active: mediaFilter === 'video' }" @click="mediaFilter = 'video'">
+          视频 ({{ videoOutputs.length }})
+        </button>
+        <button type="button" class="filter-chip" :class="{ active: mediaFilter === 'image' }" @click="mediaFilter = 'image'">
+          图片 ({{ imageOutputs.length }})
+        </button>
+      </div>
+      <div v-if="!filteredOutputs.length" class="empty">暂无对应的历史产物</div>
       <div v-else class="video-grid">
         <article
-          v-for="item in videoOutputs"
+          v-for="item in filteredOutputs"
           :key="item.url"
           class="out-card"
-          title="左键大图预览 · 右键菜单删除"
+          draggable="true"
+          :title="item.meta ? '按住拖到画布回溯当时生成配置 · 左键预览 · 右键菜单' : '按住拖到画布复用素材 · 左键预览 · 右键菜单'"
+          @dragstart="onOutputDragStart($event, item)"
           @click="previewItem = item"
           @contextmenu.prevent="openContextMenu($event, item)"
         >
           <div class="out-media">
             <video
+              v-if="item.kind === 'video'"
               :src="item.url"
               muted
               preload="metadata"
               playsinline
               class="out-video"
             />
-            <span class="play-badge">
+            <img
+              v-else
+              :src="item.url"
+              :alt="item.name"
+              loading="lazy"
+              draggable="false"
+              class="out-video"
+            />
+            <span v-if="item.kind === 'video'" class="play-badge">
               <Play :size="16" fill="currentColor" />
             </span>
+            <span v-if="item.meta" class="meta-badge" title="含生成配置，拖到画布可回溯">可回溯</span>
           </div>
           <div class="out-meta">
             <div class="out-name" :title="item.name">
-              <Film :size="11" class="lime" />
-              <span>{{ item.name }}</span>
+              <Film v-if="item.kind === 'video'" :size="11" class="lime" />
+              <ImageIcon v-else :size="11" class="sky" />
+              <span>{{ item.meta?.name || item.name }}</span>
             </div>
             <div class="out-sub">
               <span>{{ formatSize(item.size) }}</span>
@@ -239,6 +305,9 @@ onBeforeUnmount(() => {
         @click.stop
         @pointerdown.stop
       >
+        <button type="button" class="ctx-item" @click="restoreToCanvasCenter(ctxMenu.item)">
+          <RotateCcw :size="13" /> {{ ctxMenu.item.meta ? '回溯配置到画布' : '添加到画布' }}
+        </button>
         <button
           type="button"
           class="ctx-item"
@@ -255,10 +324,10 @@ onBeforeUnmount(() => {
           class="ctx-item"
           @click="ctxMenu = null"
         >
-          <Download :size="13" /> 下载成片
+          <Download :size="13" /> 下载文件
         </a>
         <button type="button" class="ctx-item danger" @click="handleDeleteOutput(ctxMenu.item)">
-          <Trash2 :size="13" /> 删除视频
+          <Trash2 :size="13" /> 删除文件
         </button>
       </div>
     </Teleport>
@@ -284,11 +353,18 @@ onBeforeUnmount(() => {
           </header>
           <div class="lightbox-stage">
             <video
+              v-if="previewItem.kind === 'video'"
               :src="previewItem.url"
               controls
               autoplay
               loop
               playsinline
+              class="lightbox-video"
+            />
+            <img
+              v-else
+              :src="previewItem.url"
+              :alt="previewItem.name"
               class="lightbox-video"
             />
           </div>
@@ -365,6 +441,49 @@ onBeforeUnmount(() => {
   display: flex;
   flex-direction: column;
   gap: 10px;
+}
+
+.filter-bar {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.filter-chip {
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  padding: 5px 6px;
+  background: var(--surface-group);
+  color: var(--muted);
+  font-size: 11.5px;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.filter-chip.active {
+  background: var(--surface-selected);
+  border-color: var(--accent-border);
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.meta-badge {
+  position: absolute;
+  top: 6px;
+  left: 6px;
+  padding: 1px 6px;
+  border-radius: 999px;
+  background: rgba(15, 15, 17, 0.8);
+  border: 1px solid rgba(204, 255, 0, 0.45);
+  color: var(--accent);
+  font-size: 10px;
+  font-weight: 600;
+}
+
+.sky {
+  color: #62b5ff;
+  flex-shrink: 0;
 }
 
 .empty {

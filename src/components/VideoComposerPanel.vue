@@ -762,20 +762,6 @@ function handleSubmit() {
         </div>
       </div>
 
-      <!-- Live Progress Strip while Generating -->
-      <div v-if="card.status === 'running'" class="gen-progress-strip">
-        <div class="gen-progress-meta">
-          <span><Loader2 :size="12" class="spin lime-dot" /> 正在调用 {{ activeProvider === 'tensor' ? 'Tensor (Forge)' : activeProvider === 'runninghub' ? 'RunningHub' : '火山方舟' }} 生成视频（{{ currentModelLabel }}）…</span>
-          <div class="gen-progress-right">
-            <strong>已耗时 {{ elapsedSec }}s</strong>
-            <button type="button" class="stop-btn" @click="canvas.cancelNode(card.id)">停止</button>
-          </div>
-        </div>
-        <div class="gen-progress-track">
-          <div class="gen-progress-fill" />
-        </div>
-      </div>
-
       <!-- Bottom Control Bar -->
       <div class="composer-foot">
         <div class="foot-left">

@@ -256,10 +256,21 @@ def create_app() -> Flask:
 
     @app.get("/api/outputs")
     def list_outputs():
+        import json
         from urllib.parse import quote
         from datetime import datetime, timezone
 
         root = settings.output_dir()
+        meta_map: dict[str, Any] = {}
+        meta_path = root / ".meta.json"
+        if meta_path.exists():
+            try:
+                raw_meta = json.loads(meta_path.read_text(encoding="utf-8"))
+                if isinstance(raw_meta, dict):
+                    meta_map = raw_meta
+            except Exception:
+                meta_map = {}
+
         items: list[dict[str, Any]] = []
         for sub, kind, exts in [
             ("videos", "video", {".mp4", ".mov", ".webm"}),
@@ -282,10 +293,11 @@ def create_app() -> Flask:
                         "size": st.st_size,
                         "mtime": st.st_mtime,
                         "created_at": datetime.fromtimestamp(st.st_mtime, tz=timezone.utc).isoformat(),
+                        "meta": meta_map.get(rel),
                     }
                 )
         items.sort(key=lambda x: x["mtime"], reverse=True)
-        return jsonify({"success": True, "outputs": items[:100]})
+        return jsonify({"success": True, "outputs": items[:150]})
 
     @app.delete("/api/outputs/<path:rel_path>")
     def delete_output_asset(rel_path: str):

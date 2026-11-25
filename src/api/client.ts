@@ -222,6 +222,20 @@ export const apiClient = {
         size: number;
         mtime: number;
         created_at: string;
+        meta?: {
+          node_type?: string;
+          name?: string;
+          model?: string;
+          prompt?: string;
+          aspect?: string;
+          resolution?: string;
+          duration?: number;
+          videoMode?: string;
+          stylePreset?: string;
+          generateAudio?: boolean;
+          provider?: string;
+          created_at?: string;
+        } | null;
       }>;
     }>('/outputs');
   },

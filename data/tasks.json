@@ -106,5 +106,53 @@
     "created_at": "2026-11-24T15:00:21.460646+00:00",
     "finished_at": "2026-11-24T15:00:21.460646+00:00",
     "duration_ms": 810096
+  },
+  {
+    "id": "task-12bc94c5fb",
+    "node_id": "g9-2-v-ChztCb1cYu",
+    "node_name": "视频成片",
+    "node_type": "video",
+    "status": "error",
+    "message": "任务已取消",
+    "provider": "local",
+    "created_at": "2026-11-25T01:21:55.113825+00:00",
+    "finished_at": "2026-11-25T01:21:55.114341+00:00",
+    "duration_ms": 19008
+  },
+  {
+    "id": "task-4a44023556",
+    "node_id": "g9-2-v-ChztCb1cYu",
+    "node_name": "视频成片",
+    "node_type": "video",
+    "status": "error",
+    "message": "OUTPUT_AUDIO_BLOCKED: The generated content did not pass the safety review. Adjust the prompt or input and try again.",
+    "provider": "tensor:tensor:SEEDANCE_2_0_FAST",
+    "created_at": "2026-11-25T01:46:29.786150+00:00",
+    "finished_at": "2026-11-25T01:46:29.786150+00:00",
+    "duration_ms": 433917
+  },
+  {
+    "id": "task-f58c3b1fb4",
+    "node_id": "g9-1-i-FlacW32V0c",
+    "node_name": "人物三视图",
+    "node_type": "image",
+    "status": "done",
+    "message": "Tensor 生图成功（NANO_BANANA_2）",
+    "provider": "tensor:NANO_BANANA_2",
+    "created_at": "2026-11-25T01:49:44.502659+00:00",
+    "finished_at": "2026-11-25T01:49:44.502659+00:00",
+    "duration_ms": 105159
+  },
+  {
+    "id": "task-2efe66796b",
+    "node_id": "g9-2-v-ChztCb1cYu",
+    "node_name": "视频成片",
+    "node_type": "video",
+    "status": "error",
+    "message": "OUTPUT_AUDIO_BLOCKED: The generated content did not pass the safety review. Adjust the prompt or input and try again.",
+    "provider": "tensor:tensor:SEEDANCE_2_5_FLASH",
+    "created_at": "2026-11-25T01:54:56.180767+00:00",
+    "finished_at": "2026-11-25T01:54:56.180767+00:00",
+    "duration_ms": 252049
   }
 ]

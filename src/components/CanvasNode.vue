@@ -42,15 +42,22 @@ const copiedError = ref(false);
 const elapsedSec = ref(0);
 let elapsedTimer: ReturnType<typeof setInterval> | null = null;
 
+function syncElapsed() {
+  const started = canvas.runStartedAt[props.card.id];
+  if (started) {
+    elapsedSec.value = Math.max(0, Math.floor((Date.now() - started) / 1000));
+  } else {
+    elapsedSec.value += 1;
+  }
+}
+
 watch(
-  () => props.card.status,
-  (st) => {
+  () => [props.card.status, canvas.runStartedAt[props.card.id]] as const,
+  ([st, started]) => {
     if (st === 'running') {
-      elapsedSec.value = 0;
+      elapsedSec.value = started ? Math.max(0, Math.floor((Date.now() - started) / 1000)) : 0;
       if (elapsedTimer) clearInterval(elapsedTimer);
-      elapsedTimer = setInterval(() => {
-        elapsedSec.value += 1;
-      }, 1000);
+      elapsedTimer = setInterval(syncElapsed, 1000);
     } else if (elapsedTimer) {
       clearInterval(elapsedTimer);
       elapsedTimer = null;

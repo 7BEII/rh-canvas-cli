@@ -3,24 +3,21 @@
   "id": "canvas-98ff6b39ebf948e79782c1c1ab407b5f",
   "name": "LibTV 复刻 · Group 9 精简版",
   "created_at": "2026-11-24T15:03:52.738194+00:00",
-  "updated_at": "2026-11-24T15:13:03.473503+00:00",
+  "updated_at": "2026-11-25T01:54:39.721054+00:00",
   "node_count": 9,
   "snapshot": {
     "format": "rh-canvas",
     "version": 1,
-    "exportedAt": "2026-11-24T15:13:03.473503+00:00",
+    "exportedAt": "2026-11-25T01:54:39.718Z",
     "schemaVersion": 1,
     "canvas": {
       "cards": [
         {
+          "activeResultIndex": 0,
+          "height": 92,
           "id": "g9-1-i-FlacW32V0c",
-          "type": "source",
           "mediaKind": "image",
           "name": "人物三视图",
-          "x": 60,
-          "y": 20,
-          "width": 156,
-          "height": 92,
           "refs": [],
           "results": [
             {
@@ -30,19 +27,19 @@
               "url": "/api/assets/input/libtv-g9-i-FlacW32V0c.png"
             }
           ],
-          "activeResultIndex": 0,
+          "selected": false,
           "status": "done",
-          "selected": false
+          "type": "source",
+          "width": 156,
+          "x": 214,
+          "y": 10
         },
         {
+          "activeResultIndex": 0,
+          "height": 148,
           "id": "g9-3-i-JDn8QUPa0x",
-          "type": "source",
           "mediaKind": "image",
           "name": "人脸参考1",
-          "x": 60,
-          "y": 142,
-          "width": 148,
-          "height": 148,
           "refs": [],
           "results": [
             {
@@ -52,19 +49,19 @@
               "url": "/api/assets/input/libtv-g9-i-JDn8QUPa0x.jpg"
             }
           ],
-          "activeResultIndex": 0,
+          "selected": false,
           "status": "done",
-          "selected": false
+          "type": "source",
+          "width": 148,
+          "x": 60,
+          "y": 142
         },
         {
+          "activeResultIndex": 0,
+          "height": 148,
           "id": "g9-4-i-0vQc8NLYLk",
-          "type": "source",
           "mediaKind": "image",
           "name": "人脸参考2",
-          "x": 224,
-          "y": 142,
-          "width": 148,
-          "height": 148,
           "refs": [],
           "results": [
             {
@@ -74,19 +71,19 @@
               "url": "/api/assets/input/libtv-g9-i-0vQc8NLYLk.jpg"
             }
           ],
-          "activeResultIndex": 0,
+          "selected": false,
           "status": "done",
-          "selected": false
+          "type": "source",
+          "width": 148,
+          "x": 224,
+          "y": 142
         },
         {
+          "activeResultIndex": 0,
+          "height": 148,
           "id": "g9-5-i-kFsgZ6e0fG",
-          "type": "source",
           "mediaKind": "image",
           "name": "造型参考",
-          "x": 388,
-          "y": 142,
-          "width": 148,
-          "height": 148,
           "refs": [],
           "results": [
             {
@@ -96,19 +93,19 @@
               "url": "/api/assets/input/libtv-g9-i-kFsgZ6e0fG.png"
             }
           ],
-          "activeResultIndex": 0,
+          "selected": false,
           "status": "done",
-          "selected": false
+          "type": "source",
+          "width": 148,
+          "x": 388,
+          "y": 142
         },
         {
+          "activeResultIndex": 0,
+          "height": 148,
           "id": "g9-7-v-YzZwkj3vvN",
-          "type": "source",
           "mediaKind": "video",
           "name": "深度动作参考",
-          "x": 552,
-          "y": 142,
-          "width": 148,
-          "height": 148,
           "refs": [],
           "results": [
             {
@@ -118,19 +115,19 @@
               "url": "/api/assets/input/libtv-g9-v-YzZwkj3vvN.mp4"
             }
           ],
-          "activeResultIndex": 0,
+          "selected": false,
           "status": "done",
-          "selected": false
+          "type": "source",
+          "width": 148,
+          "x": 383,
+          "y": 324
         },
         {
+          "activeResultIndex": 0,
+          "height": 100,
           "id": "g9-8-a-fcgBBJSp2V",
-          "type": "source",
           "mediaKind": "audio",
           "name": "背景音乐",
-          "x": 60,
-          "y": 318,
-          "width": 156,
-          "height": 100,
           "refs": [],
           "results": [
             {
@@ -140,19 +137,19 @@
               "url": "/api/assets/input/libtv-g9-a-fcgBBJSp2V.mp3"
             }
           ],
-          "activeResultIndex": 0,
+          "selected": false,
           "status": "done",
-          "selected": false
+          "type": "source",
+          "width": 156,
+          "x": 60,
+          "y": 318
         },
         {
+          "activeResultIndex": 0,
+          "height": 198,
           "id": "g9-6-i-S2Ga83bYb1",
-          "type": "source",
           "mediaKind": "image",
           "name": "小羊参考",
-          "x": 60,
-          "y": 510,
-          "width": 148,
-          "height": 198,
           "refs": [],
           "results": [
             {
@@ -162,19 +159,19 @@
               "url": "/api/assets/input/libtv-g9-i-S2Ga83bYb1.png"
             }
           ],
-          "activeResultIndex": 0,
+          "selected": false,
           "status": "done",
-          "selected": false
+          "type": "source",
+          "width": 148,
+          "x": 60,
+          "y": 510
         },
         {
+          "activeResultIndex": 0,
+          "height": 198,
           "id": "g9-9-i-yMY8RoKxi3",
-          "type": "source",
           "mediaKind": "image",
           "name": "湖畔栈道场景",
-          "x": 224,
-          "y": 510,
-          "width": 148,
-          "height": 198,
           "refs": [],
           "results": [
             {
@@ -184,29 +181,26 @@
               "url": "/api/assets/input/libtv-g9-i-yMY8RoKxi3.jpg"
             }
           ],
-          "activeResultIndex": 0,
+          "selected": false,
           "status": "done",
-          "selected": false
+          "type": "source",
+          "width": 148,
+          "x": 224,
+          "y": 510
         },
         {
-          "id": "g9-2-v-ChztCb1cYu",
-          "type": "video",
-          "name": "视频成片",
-          "x": 800,
-          "y": 160,
-          "width": 210,
-          "height": 290,
-          "model": "tensor:SEEDANCE_2_5_FLASH",
-          "videoMode": "omni",
           "aspect": "9:16",
-          "resolution": "720p",
-          "duration": 15,
-          "generateAudio": true,
           "batchCount": 1,
-          "quality": "standard",
-          "stylePreset": "古风奇幻",
-          "prompt": "参考视频 @视频1  深度信息及镜头切换节奏，整体的音乐使用 @音频1  这一段音乐；\n \n@图片3 「人物三视图」节点输出的五宫格人物参考图 （人物三视图）为女子人物形象， @图片1  为小羊形象，人物和小羊特征以 @图片3 「人物三视图」节点输出的五宫格人物参考图 @图片1  为唯一标准，不可自行更改。\n \n分镜执行（动作/运镜/场景严格参照 @视频1  对应时间段，人物和小羊形象严格参照 @图片3 「人物三视图」节点输出的五宫格人物参考图 @图片1  ）：\n \n段落 1 ｜ 0.0–4.8s（4.8s）抱羊入画 · 转身\n@视频1  对应画面， @图片3 「人物三视图」节点输出的五宫格人物参考图 为人物 @图片1  为小羊， @图片2  为这一段场景\n景别/机位：中景，平视，随人物入画后轻微前移（全景向中景推进）\n画面：人物从右侧走入栈道站定，怀抱白羊，由侧对湖景转身正对镜头、低头看羊；木护栏、蓝湖、残雪山林，前景松枝\n \n段落 2 ｜ 4.8–8.2s（3.4s）小羊舔脸\n@视频1  对应画面， @图片3 「人物三视图」节点输出的五宫格人物参考图 为人物 @图片1  为小羊， @图片2  为这一段场景\n景别/机位：中近景，平视，镜头缓慢环绕、小幅推近\n画面：人物调整抱羊姿势，戴红白背带的小羊扭头凑近、伸舌舔舐人物脸颊，人物微微低头靠近；背景湖林虚化\n\n段落 3 ｜ 8.2–15.0s（6.8s）近景特写 · 微笑对望\n@视频1  对应画面， @图片3 「人物三视图」节点输出的五宫格人物参考图 为人物 @图片1  为小羊， @图片2  为这一段场景\n景别/机位：近景/特写，平视，持续缓慢推近，最终聚焦面部\n画面：人物将小羊抱稳胸前、微笑直视镜头并轻歪头，小羊前爪搭手臂、脸朝镜头、颈挂金铃；背景湖林完全虚化为蓝绿色块\n \n约束： @图片3 「人物三视图」节点输出的五宫格人物参考图 中的发色/服装颜色为固定值不可修改；禁止出现与 @图片3 「人物三视图」节点输出的五宫格人物参考图 @图片1  不符的第二种人物形象。",
+          "duration": 15,
+          "error": "",
+          "generateAudio": true,
+          "height": 290,
+          "id": "g9-2-v-ChztCb1cYu",
           "localMedia": [],
+          "model": "tensor:SEEDANCE_2_5_FLASH",
+          "name": "视频成片",
+          "prompt": "参考视频 @视频1  深度信息及镜头切换节奏，整体的音乐使用 @音频1  这一段音乐；\n \n@图片3 「人物三视图」节点输出的五宫格人物参考图 （人物三视图）为女子人物形象， @图片1  为小羊形象，人物和小羊特征以 @图片3 「人物三视图」节点输出的五宫格人物参考图 @图片1  为唯一标准，不可自行更改。\n \n分镜执行（动作/运镜/场景严格参照 @视频1  对应时间段，人物和小羊形象严格参照 @图片3 「人物三视图」节点输出的五宫格人物参考图 @图片1  ）：\n \n段落 1 ｜ 0.0–4.8s（4.8s）抱羊入画 · 转身\n@视频1  对应画面， @图片3 「人物三视图」节点输出的五宫格人物参考图 为人物 @图片1  为小羊， @图片2  为这一段场景\n景别/机位：中景，平视，随人物入画后轻微前移（全景向中景推进）\n画面：人物从右侧走入栈道站定，怀抱白羊，由侧对湖景转身正对镜头、低头看羊；木护栏、蓝湖、残雪山林，前景松枝\n \n段落 2 ｜ 4.8–8.2s（3.4s）小羊舔脸\n@视频1  对应画面， @图片3 「人物三视图」节点输出的五宫格人物参考图 为人物 @图片1  为小羊， @图片2  为这一段场景\n景别/机位：中近景，平视，镜头缓慢环绕、小幅推近\n画面：人物调整抱羊姿势，戴红白背带的小羊扭头凑近、伸舌舔舐人物脸颊，人物微微低头靠近；背景湖林虚化\n\n段落 3 ｜ 8.2–15.0s（6.8s）近景特写 · 微笑对望\n@视频1  对应画面， @图片3 「人物三视图」节点输出的五宫格人物参考图 为人物 @图片1  为小羊， @图片2  为这一段场景\n景别/机位：近景/特写，平视，持续缓慢推近，最终聚焦面部\n画面：人物将小羊抱稳胸前、微笑直视镜头并轻歪头，小羊前爪搭手臂、脸朝镜头、颈挂金铃；背景湖林完全虚化为蓝绿色块\n \n约束： @图片3 「人物三视图」节点输出的五宫格人物参考图 中的发色/服装颜色为固定值不可修改；禁止出现与 @图片3 「人物三视图」节点输出的五宫格人物参考图 @图片1  不符的第二种人物形象。",
+          "quality": "standard",
           "refs": [
             {
               "from": "g9-6-i-S2Ga83bYb1",
@@ -234,16 +228,23 @@
               "label": "背景音乐"
             }
           ],
+          "resolution": "480p",
           "results": [],
-          "status": "idle",
-          "selected": false
+          "selected": false,
+          "status": "running",
+          "stylePreset": "古风奇幻",
+          "type": "video",
+          "videoMode": "omni",
+          "width": 210,
+          "x": 561,
+          "y": 151
         }
       ],
       "seq": 10,
       "viewport": {
-        "x": 160,
-        "y": 110,
-        "z": 0.65
+        "x": 5.633604879439645,
+        "y": 148.11342621365452,
+        "z": 1.137
       }
     }
   }

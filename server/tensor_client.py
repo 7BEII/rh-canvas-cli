@@ -401,6 +401,28 @@ class TensorCanvasClient:
         img = [u for u in dedup if any(ext in u.lower().split("?")[0] for ext in (".png", ".jpg", ".jpeg", ".webp"))]
         return img or dedup
 
+    def _fetch_node_failure_detail(self, canvas_id: str, node_id: str, fallback_status: str) -> str:
+        """Query /workflow/runs/query to get the raw failCode / failMessage without prompt dumps."""
+        try:
+            runs_resp = self._post_json(
+                "/workflow/runs/query",
+                {"canvasId": canvas_id, "nodeIds": [node_id]},
+                timeout=15,
+            )
+            for item in runs_resp.get("runs") or []:
+                sub_runs = item.get("runs") or []
+                for sr in sub_runs:
+                    code = str(sr.get("failCode") or "").strip()
+                    msg = str(sr.get("failMessage") or "").strip()
+                    if msg or code:
+                        return f"{code}: {msg}".strip(": ") if code and msg else (msg or code)
+                reviews = item.get("reviewInfos") or []
+                if reviews:
+                    return json.dumps(reviews, ensure_ascii=False)
+        except Exception:
+            pass
+        return fallback_status
+
     def _poll_workflow_output(
         self,
         canvas_id: str,
@@ -423,15 +445,17 @@ class TensorCanvasClient:
                 continue
 
             nodes = (graph.get("workflow") or {}).get("nodes") or []
+            # Only track actual GENERATE nodes (exclude UPLOAD reference nodes which stay IDLE)
             gen_nodes = [
                 n for n in nodes
-                if str(n.get("type") or "").upper() == target_type
-                or str(n.get("subType") or "").upper() == "GENERATE"
+                if str(n.get("subType") or "").upper() == "GENERATE"
+                and (not target_type or str(n.get("type") or "").upper() == target_type)
             ]
+            if not gen_nodes:
+                gen_nodes = [n for n in nodes if str(n.get("subType") or "").upper() == "GENERATE"]
             if not gen_nodes:
                 if saw_node:
                     break
-                # Wait briefly in case node creation lags slightly behind SSE end
                 if time.monotonic() > deadline - timeout_sec + 12:
                     break
                 time.sleep(2.0)
@@ -453,14 +477,15 @@ class TensorCanvasClient:
                 elif st in ("RUNNING", "READY", "IDLE", "PENDING", "QUEUED"):
                     running_count += 1
                 elif st in ("FAILED", "INVALID", "ERROR"):
-                    failed_msgs.append(f"{n.get('title') or n.get('id')}: {st}")
+                    detail = self._fetch_node_failure_detail(canvas_id, str(n.get("id") or ""), st)
+                    failed_msgs.append(detail)
 
             urls = list(dict.fromkeys(urls))
             if urls:
                 return urls
             if running_count == 0:
                 if failed_msgs:
-                    raise RuntimeError(f"Tensor 画布节点生成失败：{'; '.join(failed_msgs)}")
+                    raise RuntimeError(" | ".join(failed_msgs))
                 break
 
             time.sleep(2.5)
@@ -718,11 +743,23 @@ class TensorCanvasClient:
 
         urls = list(dict.fromkeys(urls))
         if not urls:
-            reply_preview = "".join(texts).strip()[:280]
-            if "BadRequestError" in reply_preview:
-                raise RuntimeError(f"Tensor 云端 Agent 响应中断（已自动重试仍失败）：{reply_preview}")
-            hint = f"（Agent 回复：{reply_preview}）" if reply_preview else ""
-            raise RuntimeError(f"Tensor 未返回生成产物{hint}")
+            # Check if any generate node failed or is still stuck, return raw status/error only
+            try:
+                graph = self._post_json("/workflow/graph", {"canvasId": canvas_id}, timeout=15)
+                gen_nodes = [
+                    n for n in ((graph.get("workflow") or {}).get("nodes") or [])
+                    if str(n.get("subType") or "").upper() == "GENERATE"
+                ]
+                if gen_nodes:
+                    st = str(gen_nodes[-1].get("status") or "UNKNOWN")
+                    detail = self._fetch_node_failure_detail(canvas_id, str(gen_nodes[-1].get("id") or ""), st)
+                    raise RuntimeError(f"canvas={canvas_id} status={st}: {detail}")
+            except RuntimeError:
+                raise
+            except Exception:
+                pass
+            reply_preview = "".join(texts).strip()[:160]
+            raise RuntimeError(reply_preview or f"canvas={canvas_id}: 未返回生成产物")
 
         return {
             "canvas_id": canvas_id,

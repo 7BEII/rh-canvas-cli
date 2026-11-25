@@ -116,6 +116,49 @@ class WorkflowRunner:
         rel = file_path.resolve().relative_to(root).as_posix()
         return f"/api/outputs/{quote(rel)}"
 
+    def _save_output_meta(
+        self,
+        file_path: Path,
+        card: dict[str, Any],
+        provider: str,
+        combined_prompt: str,
+    ) -> None:
+        """Persist generation config snapshot for an output file so dragging it back onto canvas restores settings."""
+        try:
+            root = self.settings.output_dir()
+            rel = file_path.resolve().relative_to(root).as_posix()
+            meta_path = root / ".meta.json"
+            with self._lock:
+                store: dict[str, Any] = {}
+                if meta_path.exists():
+                    try:
+                        raw = json.loads(meta_path.read_text(encoding="utf-8"))
+                        if isinstance(raw, dict):
+                            store = raw
+                    except Exception:
+                        store = {}
+                store[rel] = {
+                    "node_type": str(card.get("type") or "image"),
+                    "name": str(card.get("name") or ""),
+                    "model": str(card.get("model") or ""),
+                    "prompt": str(card.get("prompt") or combined_prompt or ""),
+                    "aspect": str(card.get("aspect") or ""),
+                    "resolution": str(card.get("resolution") or ""),
+                    "duration": card.get("duration"),
+                    "videoMode": str(card.get("videoMode") or ""),
+                    "stylePreset": str(card.get("stylePreset") or ""),
+                    "generateAudio": card.get("generateAudio", True),
+                    "provider": provider,
+                    "created_at": _now_iso(),
+                }
+                # Keep most recent 400 entries
+                if len(store) > 400:
+                    keys = list(store.keys())[-400:]
+                    store = {k: store[k] for k in keys}
+                meta_path.write_text(json.dumps(store, ensure_ascii=False, indent=2), encoding="utf-8")
+        except Exception:
+            pass
+
     def _collect_upstream(self, upstream: list[dict[str, Any]]) -> tuple[list[str], list[dict[str, Any]]]:
         texts: list[str] = []
         assets: list[dict[str, Any]] = []
@@ -683,6 +726,7 @@ class WorkflowRunner:
                     )
 
                 if use_tensor_img:
+                    provider = f"tensor:{model.removeprefix('tensor:')}"
                     tc = TensorCanvasClient(api_key=tensor_key, base_url=resolve_tensor_base_url(config))
                     cancel_ev = threading.Event()
                     run_state: dict[str, Any] = {"cancel_event": cancel_ev, "tensor_canvas_id": "", "tensor_session_id": ""}
@@ -787,6 +831,7 @@ class WorkflowRunner:
                     use_ark = (not use_tensor) and (not use_rh) and bool(ark_key)
 
                 if use_tensor:
+                    provider = f"tensor:{model.removeprefix('tensor:')}"
                     full_prompt = combined_prompt
                     if style_preset and style_preset != "无" and style_preset not in full_prompt:
                         full_prompt = f"{full_prompt}\n画面风格：{style_preset}".strip()
@@ -1095,6 +1140,12 @@ class WorkflowRunner:
                 results = [{"kind": "text", "label": "输出", "text": combined_prompt or "OK"}]
 
             duration_ms = int((time.perf_counter() - started) * 1000)
+            for item in results:
+                p_str = str(item.get("path") or "").strip()
+                if p_str and item.get("kind") in ("image", "video"):
+                    p_obj = Path(p_str)
+                    if p_obj.exists() and p_obj.is_file():
+                        self._save_output_meta(p_obj, card, provider, combined_prompt)
             task = self._record_task(
                 {
                     "id": f"task-{uuid4().hex[:10]}",
