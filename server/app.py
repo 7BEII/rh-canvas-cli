@@ -155,7 +155,21 @@ def create_app() -> Flask:
 
     @app.get("/api/projects")
     def list_projects():
-        return jsonify({"success": True, "projects": projects.list()})
+        stage = request.args.get("stage")
+        try:
+            items = projects.list(stage=stage)
+        except ValueError as exc:
+            return _json_error(exc, 400)
+        return jsonify(
+            {
+                "success": True,
+                "projects": items,
+                "dirs": {
+                    "online": str(projects.online_dir),
+                    "test": str(projects.test_dir),
+                },
+            }
+        )
 
     @app.post("/api/projects")
     def create_project():
@@ -164,6 +178,7 @@ def create_app() -> Flask:
             record = projects.create(
                 name=str(payload.get("name") or "未命名画布"),
                 snapshot=payload.get("snapshot"),
+                stage=str(payload.get("stage") or "test"),
             )
             return jsonify({"success": True, "project": record}), 201
         except (ValueError, SnapshotTooLargeError) as exc:
@@ -187,6 +202,18 @@ def create_app() -> Flask:
                 name=payload.get("name"),
                 snapshot=payload.get("snapshot"),
             )
+            return jsonify({"success": True, "project": record})
+        except FileNotFoundError as exc:
+            return _json_error(exc, 404)
+        except (ValueError, SnapshotTooLargeError, ProjectCorruptError) as exc:
+            return _json_error(exc, 400)
+
+    @app.post("/api/projects/<project_id>/stage")
+    def move_project_stage(project_id: str):
+        payload: dict[str, Any] = request.get_json(silent=True) or {}
+        target_stage = payload.get("stage")
+        try:
+            record = projects.move_stage(project_id, str(target_stage or ""))
             return jsonify({"success": True, "project": record})
         except FileNotFoundError as exc:
             return _json_error(exc, 404)

@@ -359,6 +359,7 @@ def export_workspace_zip(
             {
                 "id": record.get("id"),
                 "name": record.get("name") or "未命名画布",
+                "stage": record.get("stage") or summary.get("stage") or "test",
                 "created_at": record.get("created_at"),
                 "updated_at": record.get("updated_at"),
                 "snapshot": snapshot,
@@ -529,13 +530,14 @@ def import_workspace_zip(
                                 m["path"] = matched["path"]
 
             pname = str(item.get("name") or "导入画布")
+            pstage = str(item.get("stage") or "test")
             pid = str(item.get("id") or "")
             target_id = pid if (pid and pid in existing_ids) else existing_by_name.get(pname, "")
             if target_id:
                 rec = projects.update(target_id, name=pname, snapshot=snapshot)
                 updated_count += 1
             else:
-                rec = projects.create(name=pname, snapshot=snapshot)
+                rec = projects.create(name=pname, snapshot=snapshot, stage=pstage)
                 imported_count += 1
                 existing_ids.add(rec["id"])
                 if pname != "未命名画布":

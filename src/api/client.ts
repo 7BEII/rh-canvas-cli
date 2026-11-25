@@ -4,6 +4,7 @@ import type {
   CanvasSnapshot,
   CardResult,
   ProjectRecord,
+  ProjectStage,
   ProjectSummary,
   TaskLogEntry,
 } from '@/types/canvas';
@@ -107,15 +108,20 @@ export const apiClient = {
     });
   },
 
-  listProjects() {
-    return request<{ success: boolean; projects: ProjectSummary[] }>('/projects');
+  listProjects(stage?: ProjectStage) {
+    const qs = stage ? `?stage=${encodeURIComponent(stage)}` : '';
+    return request<{
+      success: boolean;
+      projects: ProjectSummary[];
+      dirs?: { online: string; test: string };
+    }>(`/projects${qs}`);
   },
 
   getProject(id: string) {
     return request<{ success: boolean; project: ProjectRecord }>(`/projects/${encodeURIComponent(id)}`);
   },
 
-  createProject(payload: { name: string; snapshot?: CanvasSnapshot }) {
+  createProject(payload: { name: string; snapshot?: CanvasSnapshot; stage?: ProjectStage }) {
     return request<{ success: boolean; project: ProjectRecord }>('/projects', {
       method: 'POST',
       body: JSON.stringify(payload),
@@ -127,6 +133,16 @@ export const apiClient = {
       method: 'PUT',
       body: JSON.stringify(payload),
     });
+  },
+
+  setProjectStage(id: string, stage: ProjectStage) {
+    return request<{ success: boolean; project: ProjectRecord }>(
+      `/projects/${encodeURIComponent(id)}/stage`,
+      {
+        method: 'POST',
+        body: JSON.stringify({ stage }),
+      },
+    );
   },
 
   duplicateProject(id: string) {

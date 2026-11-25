@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref } from 'vue';
+import { onBeforeUnmount, onMounted, ref } from 'vue';
 import {
   Plus,
   Search,
@@ -8,15 +8,18 @@ import {
   Copy,
   Trash2,
   Pencil,
-  Layers,
-  Sparkles,
+  FlaskConical,
+  Rocket,
   Settings,
   RefreshCw,
+  ArrowUpCircle,
+  ArrowDownCircle,
+  FolderOpen,
 } from 'lucide-vue-next';
 import { apiClient } from '@/api/client';
 import { useProjectsStore } from '@/stores/projects';
 import { useCanvasStore } from '@/stores/canvas';
-import type { CanvasSnapshot, PresetTemplate, ProjectSummary } from '@/types/canvas';
+import type { CanvasSnapshot, ProjectSummary } from '@/types/canvas';
 
 const emit = defineEmits<{
   (e: 'open-settings'): void;
@@ -28,6 +31,46 @@ const canvasStore = useCanvasStore();
 const busyId = ref<string | null>(null);
 const restarting = ref(false);
 const fileInput = ref<HTMLInputElement | null>(null);
+
+const selectedId = ref<string | null>(null);
+const contextMenu = ref<{
+  x: number;
+  y: number;
+  project: ProjectSummary;
+} | null>(null);
+
+function closeContextMenu() {
+  contextMenu.value = null;
+}
+
+function openContextMenu(event: MouseEvent, project: ProjectSummary) {
+  event.preventDefault();
+  event.stopPropagation();
+  selectedId.value = project.id;
+  const menuW = 200;
+  const menuH = 260;
+  const x = Math.min(event.clientX, Math.max(8, window.innerWidth - menuW - 8));
+  const y = Math.min(event.clientY, Math.max(8, window.innerHeight - menuH - 8));
+  contextMenu.value = { x, y, project };
+}
+
+function handleGlobalKeydown(event: KeyboardEvent) {
+  if (event.key === 'Escape') {
+    closeContextMenu();
+  }
+}
+
+onMounted(() => {
+  window.addEventListener('click', closeContextMenu);
+  window.addEventListener('resize', closeContextMenu);
+  window.addEventListener('keydown', handleGlobalKeydown);
+});
+
+onBeforeUnmount(() => {
+  window.removeEventListener('click', closeContextMenu);
+  window.removeEventListener('resize', closeContextMenu);
+  window.removeEventListener('keydown', handleGlobalKeydown);
+});
 
 async function handleRestartServer() {
   if (restarting.value) return;
@@ -52,7 +95,7 @@ async function handleCreateBlank() {
   if (busyId.value) return;
   busyId.value = '__new__';
   try {
-    const project = await projectsStore.createBlankProject();
+    const project = await projectsStore.createBlankProject('未命名画布', 'test');
     canvasStore.loadSnapshot(project.snapshot);
   } catch (err: any) {
     canvasStore.showToast(err?.message || '新建失败');
@@ -61,21 +104,8 @@ async function handleCreateBlank() {
   }
 }
 
-async function handleUseTemplate(tpl: PresetTemplate) {
-  if (busyId.value) return;
-  busyId.value = tpl.id;
-  try {
-    const project = await projectsStore.createFromTemplate(tpl);
-    canvasStore.loadSnapshot(project.snapshot);
-    canvasStore.showToast(`已从模板「${tpl.name}」创建独立副本`);
-  } catch (err: any) {
-    canvasStore.showToast(err?.message || '模板创建失败');
-  } finally {
-    busyId.value = null;
-  }
-}
-
 async function handleOpen(project: ProjectSummary) {
+  closeContextMenu();
   if (busyId.value) return;
   busyId.value = project.id;
   try {
@@ -89,7 +119,36 @@ async function handleOpen(project: ProjectSummary) {
   }
 }
 
+async function handlePublish(project: ProjectSummary) {
+  closeContextMenu();
+  if (busyId.value) return;
+  busyId.value = project.id;
+  try {
+    await projectsStore.publishProject(project.id);
+    canvasStore.showToast(`已上架「${project.name}」到上线版本`);
+  } catch (err: any) {
+    canvasStore.showToast(err?.message || '上架失败');
+  } finally {
+    busyId.value = null;
+  }
+}
+
+async function handleUnpublish(project: ProjectSummary) {
+  closeContextMenu();
+  if (busyId.value) return;
+  busyId.value = project.id;
+  try {
+    await projectsStore.unpublishProject(project.id);
+    canvasStore.showToast(`已将「${project.name}」下架到测试版本`);
+  } catch (err: any) {
+    canvasStore.showToast(err?.message || '下架失败');
+  } finally {
+    busyId.value = null;
+  }
+}
+
 async function handleRename(project: ProjectSummary) {
+  closeContextMenu();
   const next = window.prompt('重命名画布', project.name);
   if (!next || !next.trim() || next.trim() === project.name) return;
   try {
@@ -101,18 +160,24 @@ async function handleRename(project: ProjectSummary) {
 }
 
 async function handleDuplicate(project: ProjectSummary) {
+  closeContextMenu();
   try {
     await projectsStore.duplicateProject(project.id);
-    canvasStore.showToast('已复制独立副本');
+    canvasStore.showToast(
+      project.stage === 'online' ? '已复制副本到测试版本' : '已复制独立副本',
+    );
   } catch (err: any) {
     canvasStore.showToast(err?.message || '复制失败');
   }
 }
 
 async function handleDelete(project: ProjectSummary) {
-  if (!window.confirm(`确定删除画布「${project.name}」吗？此操作不可撤销。`)) return;
+  closeContextMenu();
+  const stageLabel = project.stage === 'online' ? '上线版本' : '测试版本';
+  if (!window.confirm(`确定删除${stageLabel}画布「${project.name}」吗？此操作不可撤销。`)) return;
   try {
     await projectsStore.deleteProject(project.id);
+    if (selectedId.value === project.id) selectedId.value = null;
     canvasStore.showToast('已删除画布');
   } catch (err: any) {
     canvasStore.showToast(err?.message || '删除失败');
@@ -131,6 +196,7 @@ function handleExportWorkspace() {
 }
 
 function handleExportSingle(project: ProjectSummary) {
+  closeContextMenu();
   const url = apiClient.exportProjectZipUrl(project.id);
   const a = document.createElement('a');
   a.href = url;
@@ -147,7 +213,11 @@ async function handleImportFile(event: Event) {
   input.value = '';
   if (!file) return;
   try {
-    if (file.name.toLowerCase().endsWith('.zip') || file.type === 'application/zip' || file.type === 'application/x-zip-compressed') {
+    if (
+      file.name.toLowerCase().endsWith('.zip') ||
+      file.type === 'application/zip' ||
+      file.type === 'application/x-zip-compressed'
+    ) {
       const res = await projectsStore.importProjectZip(file);
       if (res.mode === 'workspace') {
         const total = (res.imported_projects || 0) + (res.updated_projects || 0);
@@ -160,8 +230,8 @@ async function handleImportFile(event: Event) {
         canvasStore.loadSnapshot(res.project.snapshot);
         canvasStore.showToast(
           res.imported_assets > 0
-            ? `已导入画布「${res.project.name}」（还原 ${res.imported_assets} 份素材）`
-            : `已导入画布「${res.project.name}」`,
+            ? `已导入到测试版本「${res.project.name}」（还原 ${res.imported_assets} 份素材）`
+            : `已导入到测试版本「${res.project.name}」`,
         );
       }
       return;
@@ -192,9 +262,9 @@ async function handleImportFile(event: Event) {
     } else {
       throw new Error('JSON 格式不兼容，缺少 canvas.cards 或配置字段');
     }
-    const project = await projectsStore.importProjectJson(name, snapshot);
+    const project = await projectsStore.importProjectJson(name, snapshot, 'test');
     canvasStore.loadSnapshot(project.snapshot);
-    canvasStore.showToast(`已导入画布「${project.name}」`);
+    canvasStore.showToast(`已导入到测试版本「${project.name}」`);
   } catch (err: any) {
     canvasStore.showToast(`导入失败：${err?.message || '无效文件'}`);
   }
@@ -216,7 +286,7 @@ function formatTime(iso: string) {
 </script>
 
 <template>
-  <div class="home-shell">
+  <div class="home-shell" @click="selectedId = null">
     <header class="home-header">
       <div class="brand">
         <div class="logo" aria-hidden="true">
@@ -230,7 +300,7 @@ function formatTime(iso: string) {
         </div>
         <div>
           <h1>全部画布</h1>
-          <p>选择预设模板开始创作，或继续编辑已有画布（独立 Vue 3 + Python 服务）</p>
+          <p>上线版本与测试版本分目录存储，右键画布可快速上架 / 下架（独立 Vue 3 + Python 服务）</p>
         </div>
       </div>
 
@@ -277,30 +347,30 @@ function formatTime(iso: string) {
           type="button"
           @click="projectsStore.filter = 'all'"
         >
-          全部
+          全部 ({{ projectsStore.projects.length }})
         </button>
         <button
           class="tab"
-          :class="{ active: projectsStore.filter === 'templates' }"
+          :class="{ active: projectsStore.filter === 'online' }"
           type="button"
-          @click="projectsStore.filter = 'templates'"
+          @click="projectsStore.filter = 'online'"
         >
-          预设模板
+          上线版本 ({{ projectsStore.onlineCount }})
         </button>
         <button
           class="tab"
-          :class="{ active: projectsStore.filter === 'mine' }"
+          :class="{ active: projectsStore.filter === 'test' }"
           type="button"
-          @click="projectsStore.filter = 'mine'"
+          @click="projectsStore.filter = 'test'"
         >
-          我的画布 ({{ projectsStore.projects.length }})
+          测试版本 ({{ projectsStore.testCount }})
         </button>
       </div>
 
       <div class="toolbar-right">
         <div class="search-box">
           <Search :size="14" class="search-icon" />
-          <input v-model="projectsStore.search" class="field search-input" placeholder="搜索模板或我的画布…" />
+          <input v-model="projectsStore.search" class="field search-input" placeholder="搜索上线版本或测试版本…" />
         </div>
         <select v-model="projectsStore.sortBy" class="field sort-select">
           <option value="updated">按最近修改</option>
@@ -312,68 +382,117 @@ function formatTime(iso: string) {
       </div>
     </div>
 
-    <main class="home-body">
+    <main class="home-body" @scroll="closeContextMenu">
       <div v-if="projectsStore.error" class="error-banner">
         <span>{{ projectsStore.error }}</span>
         <button class="btn" type="button" @click="projectsStore.refreshList()">重试</button>
       </div>
 
-      <section
-        v-if="(projectsStore.filter === 'all' || projectsStore.filter === 'templates') && projectsStore.filteredTemplates.length"
-        class="home-section"
-      >
+      <!-- 1. 上线版本 -->
+      <section v-if="projectsStore.filter === 'all' || projectsStore.filter === 'online'" class="home-section">
         <div class="section-head">
-          <h2><Sparkles :size="15" /> 预设模板</h2>
-          <span class="section-sub">每次使用都会创建独立副本，不影响原模板</span>
-        </div>
-        <div class="card-grid">
-          <article
-            v-for="tpl in projectsStore.filteredTemplates"
-            :key="tpl.id"
-            class="tpl-card"
-            @click="handleUseTemplate(tpl)"
-          >
-            <div class="tpl-top">
-              <span class="tpl-badge" :style="{ color: tpl.accent, borderColor: tpl.accent + '55' }">
-                {{ tpl.badge }}
-              </span>
-              <button class="btn primary use-btn" type="button" :disabled="busyId === tpl.id">
-                {{ busyId === tpl.id ? '创建中…' : '使用模板' }}
-              </button>
-            </div>
-            <h3>{{ tpl.name }}</h3>
-            <p>{{ tpl.description }}</p>
-            <div class="tpl-steps">
-              <span v-for="(step, idx) in tpl.steps" :key="step" class="step-chip">
-                {{ step }}<em v-if="idx < tpl.steps.length - 1">→</em>
-              </span>
-            </div>
-          </article>
-        </div>
-      </section>
-
-      <section v-if="projectsStore.filter === 'all' || projectsStore.filter === 'mine'" class="home-section">
-        <div class="section-head">
-          <h2><Layers :size="15" /> 我的画布</h2>
-          <span class="section-sub">单击卡片直接进入无限画布编辑器</span>
+          <h2>
+            <Rocket :size="15" class="online-icon" />
+            上线版本
+            <span class="section-count online">{{ projectsStore.onlineProjects.length }}</span>
+          </h2>
+          <span class="section-sub" :title="projectsStore.stageDirs?.online || 'data/projects/online'">
+            目录 data/projects/online · 单击打开，右键可下架
+          </span>
         </div>
 
         <div v-if="projectsStore.loading && !projectsStore.projects.length" class="empty-state">
-          正在加载画布列表…
+          正在加载上线版本…
         </div>
-        <div v-else-if="!projectsStore.filteredProjects.length" class="empty-state">
-          <p v-if="projectsStore.search">没有匹配「{{ projectsStore.search }}」的画布</p>
-          <p v-else>还没有个人画布，点击上方预设模板或「新建空白画布」开始创作</p>
+        <div v-else-if="!projectsStore.onlineProjects.length" class="empty-state compact">
+          <p v-if="projectsStore.search">上线版本中没有匹配「{{ projectsStore.search }}」的画布</p>
+          <p v-else>暂无上线版本，可在下方「测试版本」中选中画布右键点击「上架到上线版本」</p>
           <button v-if="projectsStore.search" class="btn" type="button" @click="projectsStore.search = ''">
             清空搜索
           </button>
         </div>
         <div v-else class="card-grid">
           <article
-            v-for="proj in projectsStore.filteredProjects"
+            v-for="proj in projectsStore.onlineProjects"
+            :key="proj.id"
+            class="proj-card online-card"
+            :class="{ selected: selectedId === proj.id }"
+            @click.stop="handleOpen(proj)"
+            @contextmenu="openContextMenu($event, proj)"
+          >
+            <div class="proj-thumb">
+              <img v-if="proj.thumbnail" :src="proj.thumbnail" :alt="proj.name" />
+              <div v-else class="proj-placeholder">
+                <span>◇</span>
+                <small>{{ proj.node_count }} 个节点</small>
+              </div>
+              <span class="stage-badge online">上线</span>
+              <div class="proj-actions" @click.stop>
+                <button
+                  class="btn icon warn"
+                  title="下架到测试版本"
+                  type="button"
+                  :disabled="busyId === proj.id"
+                  @click="handleUnpublish(proj)"
+                >
+                  <ArrowDownCircle :size="13" />
+                </button>
+                <button class="btn icon" title="导出画布 ZIP（含素材）" type="button" @click="handleExportSingle(proj)">
+                  <Download :size="13" />
+                </button>
+                <button class="btn icon" title="重命名" type="button" @click="handleRename(proj)">
+                  <Pencil :size="13" />
+                </button>
+                <button class="btn icon" title="复制副本到测试版本" type="button" @click="handleDuplicate(proj)">
+                  <Copy :size="13" />
+                </button>
+                <button class="btn icon danger" title="删除" type="button" @click="handleDelete(proj)">
+                  <Trash2 :size="13" />
+                </button>
+              </div>
+            </div>
+            <div class="proj-meta">
+              <strong :title="proj.name">{{ proj.name }}</strong>
+              <div class="proj-sub">
+                <span>{{ proj.node_count }} 节点</span>
+                <span>最近修改 {{ formatTime(proj.updated_at) }}</span>
+              </div>
+            </div>
+          </article>
+        </div>
+      </section>
+
+      <!-- 2. 测试版本 -->
+      <section v-if="projectsStore.filter === 'all' || projectsStore.filter === 'test'" class="home-section">
+        <div class="section-head">
+          <h2>
+            <FlaskConical :size="15" class="test-icon" />
+            测试版本
+            <span class="section-count">{{ projectsStore.testProjects.length }}</span>
+          </h2>
+          <span class="section-sub" :title="projectsStore.stageDirs?.test || 'data/projects/test'">
+            目录 data/projects/test · 临时创建与调试，测试通过后右键可上架
+          </span>
+        </div>
+
+        <div v-if="projectsStore.loading && !projectsStore.projects.length" class="empty-state">
+          正在加载测试版本…
+        </div>
+        <div v-else-if="!projectsStore.testProjects.length" class="empty-state">
+          <p v-if="projectsStore.search">测试版本中没有匹配「{{ projectsStore.search }}」的画布</p>
+          <p v-else>还没有测试画布，点击右上角「新建空白画布」开始创建和测试</p>
+          <button v-if="projectsStore.search" class="btn" type="button" @click="projectsStore.search = ''">
+            清空搜索
+          </button>
+        </div>
+        <div v-else class="card-grid">
+          <article
+            v-for="proj in projectsStore.testProjects"
             :key="proj.id"
             class="proj-card"
-            @click="handleOpen(proj)"
+            :class="{ selected: selectedId === proj.id }"
+            @click.stop="handleOpen(proj)"
+            @contextmenu="openContextMenu($event, proj)"
           >
             <div class="proj-thumb">
               <img v-if="proj.thumbnail" :src="proj.thumbnail" :alt="proj.name" />
@@ -382,6 +501,15 @@ function formatTime(iso: string) {
                 <small>{{ proj.node_count }} 个节点</small>
               </div>
               <div class="proj-actions" @click.stop>
+                <button
+                  class="btn icon publish"
+                  title="上架到上线版本"
+                  type="button"
+                  :disabled="busyId === proj.id"
+                  @click="handlePublish(proj)"
+                >
+                  <ArrowUpCircle :size="13" />
+                </button>
                 <button class="btn icon" title="导出画布 ZIP（含素材）" type="button" @click="handleExportSingle(proj)">
                   <Download :size="13" />
                 </button>
@@ -407,6 +535,61 @@ function formatTime(iso: string) {
         </div>
       </section>
     </main>
+
+    <!-- 右键菜单 -->
+    <Teleport to="body">
+      <div
+        v-if="contextMenu"
+        class="ctx-menu"
+        :style="{ left: `${contextMenu.x}px`, top: `${contextMenu.y}px` }"
+        @click.stop
+        @contextmenu.prevent
+      >
+        <div class="ctx-header" :title="contextMenu.project.name">
+          {{ contextMenu.project.name }}
+        </div>
+        <button type="button" class="ctx-item" @click="handleOpen(contextMenu.project)">
+          <FolderOpen :size="14" />
+          <span>打开画布</span>
+        </button>
+        <button
+          v-if="contextMenu.project.stage !== 'online'"
+          type="button"
+          class="ctx-item accent"
+          @click="handlePublish(contextMenu.project)"
+        >
+          <ArrowUpCircle :size="14" />
+          <span>上架到上线版本</span>
+        </button>
+        <button
+          v-else
+          type="button"
+          class="ctx-item warn"
+          @click="handleUnpublish(contextMenu.project)"
+        >
+          <ArrowDownCircle :size="14" />
+          <span>下架到测试版本</span>
+        </button>
+        <div class="ctx-sep" />
+        <button type="button" class="ctx-item" @click="handleRename(contextMenu.project)">
+          <Pencil :size="14" />
+          <span>重命名</span>
+        </button>
+        <button type="button" class="ctx-item" @click="handleDuplicate(contextMenu.project)">
+          <Copy :size="14" />
+          <span>{{ contextMenu.project.stage === 'online' ? '复制副本到测试版本' : '复制副本' }}</span>
+        </button>
+        <button type="button" class="ctx-item" @click="handleExportSingle(contextMenu.project)">
+          <Download :size="14" />
+          <span>导出画布 ZIP</span>
+        </button>
+        <div class="ctx-sep" />
+        <button type="button" class="ctx-item danger" @click="handleDelete(contextMenu.project)">
+          <Trash2 :size="14" />
+          <span>删除画布</span>
+        </button>
+      </div>
+    </Teleport>
   </div>
 </template>
 
@@ -579,6 +762,7 @@ function formatTime(iso: string) {
   display: flex;
   align-items: baseline;
   justify-content: space-between;
+  gap: 12px;
   margin-bottom: 14px;
 }
 
@@ -588,6 +772,30 @@ function formatTime(iso: string) {
   display: inline-flex;
   align-items: center;
   gap: 7px;
+}
+
+.online-icon {
+  color: var(--accent);
+}
+
+.test-icon {
+  color: #62b5ff;
+}
+
+.section-count {
+  font-size: 11px;
+  font-weight: 600;
+  padding: 1px 7px;
+  border-radius: 999px;
+  background: var(--panel-2);
+  border: 1px solid var(--line);
+  color: var(--muted);
+}
+
+.section-count.online {
+  background: var(--accent-soft);
+  border-color: var(--accent-border);
+  color: var(--accent);
 }
 
 .section-sub {
@@ -601,73 +809,6 @@ function formatTime(iso: string) {
   gap: 14px;
 }
 
-.tpl-card {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  padding: 16px;
-  border-radius: 14px;
-  background: var(--panel);
-  border: 1px solid var(--line);
-  cursor: pointer;
-  transition: transform 0.16s ease, border-color 0.16s ease, box-shadow 0.16s ease;
-}
-
-.tpl-card:hover {
-  transform: translateY(-2px);
-  border-color: var(--accent-border);
-  box-shadow: var(--shadow);
-}
-
-.tpl-top {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-}
-
-.tpl-badge {
-  font-size: 11px;
-  padding: 3px 8px;
-  border-radius: 999px;
-  border: 1px solid var(--line);
-  background: rgba(255, 255, 255, 0.03);
-}
-
-.use-btn {
-  min-height: 28px;
-  padding: 0 10px;
-  font-size: 12px;
-}
-
-.tpl-card h3 {
-  margin: 0;
-  font-size: 15px;
-}
-
-.tpl-card p {
-  margin: 0;
-  color: var(--muted);
-  font-size: 12px;
-  flex: 1;
-}
-
-.tpl-steps {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 4px;
-  padding: 8px 10px;
-  border-radius: 9px;
-  background: var(--bg);
-  font-size: 11px;
-  color: var(--muted);
-}
-
-.step-chip em {
-  font-style: normal;
-  margin: 0 4px;
-  color: var(--accent);
-}
-
 .proj-card {
   display: flex;
   flex-direction: column;
@@ -679,10 +820,19 @@ function formatTime(iso: string) {
   transition: transform 0.16s ease, border-color 0.16s ease, box-shadow 0.16s ease;
 }
 
+.proj-card.online-card {
+  border-color: rgba(204, 255, 0, 0.22);
+}
+
 .proj-card:hover {
   transform: translateY(-2px);
   border-color: var(--accent-border);
   box-shadow: var(--shadow);
+}
+
+.proj-card.selected {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px var(--accent-soft), var(--shadow);
 }
 
 .proj-thumb {
@@ -714,6 +864,23 @@ function formatTime(iso: string) {
   opacity: 0.7;
 }
 
+.stage-badge {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 600;
+  backdrop-filter: blur(8px);
+}
+
+.stage-badge.online {
+  background: rgba(20, 24, 16, 0.82);
+  border: 1px solid rgba(204, 255, 0, 0.45);
+  color: var(--accent);
+}
+
 .proj-actions {
   position: absolute;
   top: 8px;
@@ -732,6 +899,16 @@ function formatTime(iso: string) {
   width: 28px;
   min-height: 28px;
   background: rgba(17, 19, 23, 0.85);
+}
+
+.proj-actions .btn.publish {
+  color: var(--accent);
+  border-color: rgba(204, 255, 0, 0.35);
+}
+
+.proj-actions .btn.warn {
+  color: #f6c177;
+  border-color: rgba(246, 193, 119, 0.35);
 }
 
 .proj-meta {
@@ -764,6 +941,88 @@ function formatTime(iso: string) {
   flex-direction: column;
   align-items: center;
   gap: 10px;
+}
+
+.empty-state.compact {
+  padding: 28px 20px;
+}
+
+.ctx-menu {
+  position: fixed;
+  z-index: 1200;
+  min-width: 192px;
+  padding: 6px;
+  border-radius: 12px;
+  background: rgba(24, 26, 31, 0.96);
+  border: 1px solid var(--line-strong);
+  box-shadow: 0 14px 36px rgba(0, 0, 0, 0.55);
+  backdrop-filter: blur(18px);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.ctx-header {
+  padding: 5px 10px 7px;
+  font-size: 11px;
+  color: var(--muted);
+  border-bottom: 1px solid var(--line);
+  margin-bottom: 4px;
+  max-width: 220px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ctx-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 7px 10px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--text);
+  font-size: 12.5px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.ctx-item:hover {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.ctx-item.accent {
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.ctx-item.accent:hover {
+  background: var(--accent-soft);
+}
+
+.ctx-item.warn {
+  color: #f6c177;
+  font-weight: 600;
+}
+
+.ctx-item.warn:hover {
+  background: rgba(246, 193, 119, 0.14);
+}
+
+.ctx-item.danger {
+  color: var(--danger);
+}
+
+.ctx-item.danger:hover {
+  background: rgba(255, 123, 114, 0.14);
+}
+
+.ctx-sep {
+  height: 1px;
+  background: var(--line);
+  margin: 4px 6px;
 }
 
 .spin {

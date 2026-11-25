@@ -104,10 +104,13 @@ export interface CanvasSnapshot {
   };
 }
 
+export type ProjectStage = 'online' | 'test';
+
 export interface ProjectSummary {
   schema_version: number;
   id: string;
   name: string;
+  stage: ProjectStage;
   created_at: string;
   updated_at: string;
   node_count: number;

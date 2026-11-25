@@ -151,6 +151,13 @@ async function handleRestartServer() {
       </button>
 
       <div class="title-wrap">
+        <span
+          class="stage-pill"
+          :class="projects.activeProjectStage === 'online' ? 'online' : 'test'"
+          :title="projects.activeProjectStage === 'online' ? '当前位于上线版本目录' : '当前位于测试版本目录'"
+        >
+          {{ projects.activeProjectStage === 'online' ? '上线' : '测试' }}
+        </span>
         <input
           v-if="editingName"
           v-model="draftName"
@@ -297,6 +304,30 @@ async function handleRestartServer() {
 .title-wrap {
   display: flex;
   align-items: center;
+  gap: 6px;
+}
+
+.stage-pill {
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 7px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: var(--toolbar-surface);
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+.stage-pill.online {
+  border-color: rgba(204, 255, 0, 0.45);
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+.stage-pill.test {
+  border-color: rgba(98, 181, 255, 0.35);
+  background: rgba(98, 181, 255, 0.12);
+  color: #7cc4ff;
 }
 
 .title-btn {

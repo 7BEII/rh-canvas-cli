@@ -1,14 +1,14 @@
 import { defineStore } from 'pinia';
 import { ref, computed } from 'vue';
 import { apiClient } from '@/api/client';
-import { PRESET_TEMPLATES } from '@/data/templates';
-import type { CanvasSnapshot, PresetTemplate, ProjectRecord, ProjectSummary } from '@/types/canvas';
+import type { CanvasSnapshot, ProjectRecord, ProjectStage, ProjectSummary } from '@/types/canvas';
 
-export type HomeFilter = 'all' | 'templates' | 'mine';
+export type HomeFilter = 'all' | 'online' | 'test';
 export type HomeSort = 'updated' | 'name';
 
 export const useProjectsStore = defineStore('projects', () => {
   const projects = ref<ProjectSummary[]>([]);
+  const stageDirs = ref<{ online: string; test: string } | null>(null);
   const loading = ref(false);
   const error = ref<string | null>(null);
   const backendOnline = ref(false);
@@ -19,27 +19,31 @@ export const useProjectsStore = defineStore('projects', () => {
   const sortBy = ref<HomeSort>('updated');
   const activeProjectId = ref<string | null>(null);
   const activeProjectName = ref('未命名画布');
+  const activeProjectStage = ref<ProjectStage>('test');
   const saving = ref(false);
   const lastSavedAt = ref<string | null>(null);
 
-  const filteredTemplates = computed(() => {
+  function sortAndFilter(items: ProjectSummary[]) {
     const q = search.value.trim().toLowerCase();
-    if (!q) return PRESET_TEMPLATES;
-    return PRESET_TEMPLATES.filter(
-      (t) => t.name.toLowerCase().includes(q) || t.description.toLowerCase().includes(q),
-    );
-  });
-
-  const filteredProjects = computed(() => {
-    const q = search.value.trim().toLowerCase();
-    let list = projects.value.filter((p) => !q || p.name.toLowerCase().includes(q));
+    let list = items.filter((p) => !q || p.name.toLowerCase().includes(q));
     if (sortBy.value === 'name') {
       list = [...list].sort((a, b) => a.name.localeCompare(b.name, 'zh-CN'));
     } else {
       list = [...list].sort((a, b) => (b.updated_at || '').localeCompare(a.updated_at || ''));
     }
     return list;
-  });
+  }
+
+  const onlineProjects = computed(() =>
+    sortAndFilter(projects.value.filter((p) => p.stage === 'online')),
+  );
+
+  const testProjects = computed(() =>
+    sortAndFilter(projects.value.filter((p) => p.stage !== 'online')),
+  );
+
+  const onlineCount = computed(() => projects.value.filter((p) => p.stage === 'online').length);
+  const testCount = computed(() => projects.value.filter((p) => p.stage !== 'online').length);
 
   async function checkHealth() {
     try {
@@ -62,7 +66,13 @@ export const useProjectsStore = defineStore('projects', () => {
     try {
       await checkHealth();
       const res = await apiClient.listProjects();
-      projects.value = res.projects;
+      projects.value = res.projects.map((p) => ({
+        ...p,
+        stage: p.stage === 'online' ? 'online' : 'test',
+      }));
+      if (res.dirs) {
+        stageDirs.value = res.dirs;
+      }
     } catch (err: any) {
       error.value = err?.message || '加载画布列表失败';
     } finally {
@@ -74,50 +84,30 @@ export const useProjectsStore = defineStore('projects', () => {
     const res = await apiClient.getProject(id);
     activeProjectId.value = res.project.id;
     activeProjectName.value = res.project.name;
+    activeProjectStage.value = res.project.stage === 'online' ? 'online' : 'test';
     lastSavedAt.value = res.project.updated_at;
     return res.project;
   }
 
-  async function createBlankProject(name = '未命名画布'): Promise<ProjectRecord> {
-    const res = await apiClient.createProject({ name });
+  async function createBlankProject(name = '未命名画布', stage: ProjectStage = 'test'): Promise<ProjectRecord> {
+    const res = await apiClient.createProject({ name, stage });
     activeProjectId.value = res.project.id;
     activeProjectName.value = res.project.name;
-    lastSavedAt.value = res.project.updated_at;
-    await refreshList();
-    return res.project;
-  }
-
-  async function createFromTemplate(tpl: PresetTemplate): Promise<ProjectRecord> {
-    const built = tpl.build();
-    const snapshot: CanvasSnapshot = {
-      format: 'rh-canvas',
-      version: 1,
-      exportedAt: new Date().toISOString(),
-      schemaVersion: 1,
-      canvas: {
-        cards: built.cards,
-        seq: built.cards.length + 1,
-        viewport: built.viewport,
-      },
-    };
-    const existingNames = new Set(projects.value.map((p) => p.name));
-    let finalName = tpl.name;
-    let suffix = 2;
-    while (existingNames.has(finalName)) {
-      finalName = `${tpl.name} (${suffix++})`;
-    }
-    const res = await apiClient.createProject({ name: finalName, snapshot });
-    activeProjectId.value = res.project.id;
-    activeProjectName.value = res.project.name;
+    activeProjectStage.value = res.project.stage === 'online' ? 'online' : 'test';
     lastSavedAt.value = res.project.updated_at;
     await refreshList();
     return res.project;
   }
 
-  async function importProjectJson(name: string, snapshot: CanvasSnapshot): Promise<ProjectRecord> {
-    const res = await apiClient.createProject({ name, snapshot });
+  async function importProjectJson(
+    name: string,
+    snapshot: CanvasSnapshot,
+    stage: ProjectStage = 'test',
+  ): Promise<ProjectRecord> {
+    const res = await apiClient.createProject({ name, snapshot, stage });
     activeProjectId.value = res.project.id;
     activeProjectName.value = res.project.name;
+    activeProjectStage.value = res.project.stage === 'online' ? 'online' : 'test';
     lastSavedAt.value = res.project.updated_at;
     await refreshList();
     return res.project;
@@ -128,6 +118,7 @@ export const useProjectsStore = defineStore('projects', () => {
     if (res.mode === 'project' && res.project) {
       activeProjectId.value = res.project.id;
       activeProjectName.value = res.project.name;
+      activeProjectStage.value = res.project.stage === 'online' ? 'online' : 'test';
       lastSavedAt.value = res.project.updated_at;
     }
     await refreshList();
@@ -143,12 +134,14 @@ export const useProjectsStore = defineStore('projects', () => {
         snapshot,
       });
       activeProjectName.value = res.project.name;
+      activeProjectStage.value = res.project.stage === 'online' ? 'online' : 'test';
       lastSavedAt.value = res.project.updated_at;
       const idx = projects.value.findIndex((p) => p.id === res.project.id);
       const summary: ProjectSummary = {
         schema_version: res.project.schema_version,
         id: res.project.id,
         name: res.project.name,
+        stage: res.project.stage === 'online' ? 'online' : 'test',
         created_at: res.project.created_at,
         updated_at: res.project.updated_at,
         node_count: res.project.node_count,
@@ -166,6 +159,23 @@ export const useProjectsStore = defineStore('projects', () => {
       activeProjectName.value = res.project.name;
     }
     await refreshList();
+  }
+
+  async function moveProjectStage(id: string, stage: ProjectStage) {
+    const res = await apiClient.setProjectStage(id, stage);
+    if (activeProjectId.value === id) {
+      activeProjectStage.value = res.project.stage === 'online' ? 'online' : 'test';
+    }
+    await refreshList();
+    return res.project;
+  }
+
+  async function publishProject(id: string) {
+    return moveProjectStage(id, 'online');
+  }
+
+  async function unpublishProject(id: string) {
+    return moveProjectStage(id, 'test');
   }
 
   async function duplicateProject(id: string) {
@@ -187,6 +197,7 @@ export const useProjectsStore = defineStore('projects', () => {
 
   return {
     projects,
+    stageDirs,
     loading,
     error,
     backendOnline,
@@ -196,19 +207,24 @@ export const useProjectsStore = defineStore('projects', () => {
     sortBy,
     activeProjectId,
     activeProjectName,
+    activeProjectStage,
     saving,
     lastSavedAt,
-    filteredTemplates,
-    filteredProjects,
+    onlineProjects,
+    testProjects,
+    onlineCount,
+    testCount,
     checkHealth,
     refreshList,
     openProject,
     createBlankProject,
-    createFromTemplate,
     importProjectJson,
     importProjectZip,
     saveActive,
     renameProject,
+    moveProjectStage,
+    publishProject,
+    unpublishProject,
     duplicateProject,
     deleteProject,
     closeEditor,
