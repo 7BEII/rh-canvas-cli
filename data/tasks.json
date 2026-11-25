@@ -154,5 +154,17 @@
     "created_at": "2026-11-25T01:54:56.180767+00:00",
     "finished_at": "2026-11-25T01:54:56.180767+00:00",
     "duration_ms": 252049
+  },
+  {
+    "id": "task-7b565236c3",
+    "node_id": "g8-3-v-WKruDQL83A",
+    "node_name": "视频成片",
+    "node_type": "video",
+    "status": "done",
+    "message": "RunningHub 生成成功（bytedance/seedance-2.5-flash (RunningHub) · 任务 2125493492884320257 · 实扣 ¥21.956）",
+    "provider": "runninghub:bytedance/seedance-2.5-flash (RunningHub)",
+    "created_at": "2026-11-25T07:37:03.717504+00:00",
+    "finished_at": "2026-11-25T07:37:03.717504+00:00",
+    "duration_ms": 113912
   }
 ]
