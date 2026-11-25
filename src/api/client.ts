@@ -128,7 +128,7 @@ export const apiClient = {
     });
   },
 
-  updateProject(id: string, payload: { name?: string; snapshot?: CanvasSnapshot }) {
+  updateProject(id: string, payload: { name?: string; snapshot?: CanvasSnapshot; cover?: string }) {
     return request<{ success: boolean; project: ProjectRecord }>(`/projects/${encodeURIComponent(id)}`, {
       method: 'PUT',
       body: JSON.stringify(payload),
@@ -160,6 +160,33 @@ export const apiClient = {
 
   exportProjectZipUrl(id: string) {
     return `${API_BASE}/projects/${encodeURIComponent(id)}/export-zip`;
+  },
+
+  async exportSelectedProjectsZip(projectIds: string[]): Promise<{ blob: Blob; filename: string }> {
+    const res = await fetch(`${API_BASE}/projects/export-zip`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ project_ids: projectIds }),
+    });
+    if (!res.ok) {
+      let msg = `导出失败 (HTTP ${res.status})`;
+      try {
+        const data = await res.json();
+        if (data?.error) msg = data.error;
+      } catch {
+        // ignore
+      }
+      throw new Error(msg);
+    }
+    const disp = res.headers.get('Content-Disposition') || '';
+    const utfMatch = disp.match(/filename\*=UTF-8''([^;]+)/i);
+    const plainMatch = disp.match(/filename="?([^";]+)"?/i);
+    const filename = utfMatch
+      ? decodeURIComponent(utfMatch[1])
+      : plainMatch
+        ? plainMatch[1]
+        : `rh-canvas-batch-${projectIds.length}.zip`;
+    return { blob: await res.blob(), filename };
   },
 
   importProjectZip(file: File) {

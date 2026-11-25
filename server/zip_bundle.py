@@ -111,11 +111,18 @@ def export_project_zip(
         rewrite_list(card.get("results"))
         rewrite_list(card.get("localMedia"))
 
+    cover_url = str(record.get("cover") or "").strip()
+    if cover_url:
+        cover_path = _resolve_local_media({"url": cover_url}, assets, output_dir)
+        if cover_path is not None:
+            cover_url = f"zip://{register_file(cover_path)}"
+
     manifest = {
         "schema_version": 1,
         "format": "rh-canvas-zip",
         "id": record.get("id"),
         "name": record.get("name") or "未命名画布",
+        "cover": cover_url,
         "exported_at": datetime.now(timezone.utc).isoformat(),
         "asset_count": len(path_to_arc),
         "snapshot": snapshot,
@@ -272,7 +279,18 @@ def import_project_zip(
                             item["url"] = matched["url"]
                             item["path"] = matched["path"]
 
-        record = projects.create(name=project_name, snapshot=snapshot)
+        cover_url = str(raw.get("cover") or "").strip() if isinstance(raw, dict) else ""
+        if cover_url.startswith("zip://"):
+            arc_key = cover_url.removeprefix("zip://").replace("\\", "/").lstrip("/")
+            matched_cover = extracted_by_arc.get(arc_key) or extracted_by_basename.get(Path(arc_key).name)
+            if matched_cover:
+                cover_url = matched_cover["url"]
+        elif cover_url.startswith(("/api/assets/input/", "/api/outputs/")):
+            matched_cover = extracted_by_basename.get(unquote(Path(cover_url).name))
+            if matched_cover:
+                cover_url = matched_cover["url"]
+
+        record = projects.create(name=project_name, snapshot=snapshot, cover=cover_url)
         return {
             "success": True,
             "mode": "project",
@@ -355,11 +373,17 @@ def export_workspace_zip(
                     continue
                 rewrite_list(card.get("results"))
                 rewrite_list(card.get("localMedia"))
+        cover_url = str(record.get("cover") or "").strip()
+        if cover_url:
+            cover_path = _resolve_local_media({"url": cover_url}, assets, output_dir)
+            if cover_path is not None:
+                cover_url = f"zip://{register_file(cover_path)}"
         exported_projects.append(
             {
                 "id": record.get("id"),
                 "name": record.get("name") or "未命名画布",
                 "stage": record.get("stage") or summary.get("stage") or "test",
+                "cover": cover_url,
                 "created_at": record.get("created_at"),
                 "updated_at": record.get("updated_at"),
                 "snapshot": snapshot,
@@ -531,13 +555,28 @@ def import_workspace_zip(
 
             pname = str(item.get("name") or "导入画布")
             pstage = str(item.get("stage") or "test")
+            pcover = str(item.get("cover") or "").strip()
+            if pcover.startswith("zip://"):
+                arc_key = pcover.removeprefix("zip://").replace("\\", "/").lstrip("/")
+                matched_cover = extracted_by_arc.get(arc_key) or extracted_by_basename.get(Path(arc_key).name)
+                if matched_cover:
+                    pcover = matched_cover["url"]
+            elif pcover.startswith(("/api/assets/input/", "/api/outputs/")):
+                matched_cover = extracted_by_basename.get(unquote(Path(pcover).name))
+                if matched_cover:
+                    pcover = matched_cover["url"]
             pid = str(item.get("id") or "")
             target_id = pid if (pid and pid in existing_ids) else existing_by_name.get(pname, "")
             if target_id:
-                rec = projects.update(target_id, name=pname, snapshot=snapshot)
+                rec = projects.update(
+                    target_id,
+                    name=pname,
+                    snapshot=snapshot,
+                    cover=pcover if pcover else None,
+                )
                 updated_count += 1
             else:
-                rec = projects.create(name=pname, snapshot=snapshot, stage=pstage)
+                rec = projects.create(name=pname, snapshot=snapshot, stage=pstage, cover=pcover)
                 imported_count += 1
                 existing_ids.add(rec["id"])
                 if pname != "未命名画布":
@@ -553,3 +592,109 @@ def import_workspace_zip(
             "restored_settings": restored_settings,
             "projects": restored_records,
         }
+
+
+def export_selected_projects_zip(
+    project_ids: list[str],
+    *,
+    projects: ProjectStore,
+    assets: AssetStore,
+    settings: SettingsStore,
+) -> tuple[io.BytesIO, str]:
+    """Bundle one or more selected canvas projects + their referenced local assets into a ZIP."""
+    unique_ids: list[str] = []
+    seen: set[str] = set()
+    for pid in project_ids:
+        clean = str(pid or "").strip()
+        if clean and clean not in seen:
+            seen.add(clean)
+            unique_ids.append(clean)
+    if not unique_ids:
+        raise ValueError("请至少选择一个画布")
+    if len(unique_ids) == 1:
+        return export_project_zip(unique_ids[0], projects=projects, assets=assets, settings=settings)
+
+    output_dir = settings.output_dir()
+    path_to_arc: dict[Path, str] = {}
+    used_arc_names: set[str] = set()
+
+    def register_file(real_path: Path) -> str:
+        resolved = real_path.resolve()
+        if resolved in path_to_arc:
+            return path_to_arc[resolved]
+        base = _safe_filename(resolved.name, "asset.bin")
+        stem = Path(base).stem
+        ext = Path(base).suffix
+        candidate = f"assets/{base}"
+        idx = 2
+        while candidate in used_arc_names:
+            candidate = f"assets/{stem}-{idx}{ext}"
+            idx += 1
+        used_arc_names.add(candidate)
+        path_to_arc[resolved] = candidate
+        return candidate
+
+    def rewrite_list(items: Any) -> None:
+        if not isinstance(items, list):
+            return
+        for item in items:
+            if not isinstance(item, dict):
+                continue
+            real_path = _resolve_local_media(item, assets, output_dir)
+            if real_path is None:
+                continue
+            arc_name = register_file(real_path)
+            item["url"] = f"zip://{arc_name}"
+            item.pop("path", None)
+
+    exported_projects: list[dict[str, Any]] = []
+    for pid in unique_ids:
+        record = projects.get(pid)
+        snapshot = copy.deepcopy(record.get("snapshot") or {})
+        cards = (snapshot.get("canvas") or {}).get("cards")
+        if isinstance(cards, list):
+            for card in cards:
+                if not isinstance(card, dict):
+                    continue
+                rewrite_list(card.get("results"))
+                rewrite_list(card.get("localMedia"))
+        cover_url = str(record.get("cover") or "").strip()
+        if cover_url:
+            cover_path = _resolve_local_media({"url": cover_url}, assets, output_dir)
+            if cover_path is not None:
+                cover_url = f"zip://{register_file(cover_path)}"
+        exported_projects.append(
+            {
+                "id": record.get("id"),
+                "name": record.get("name") or "未命名画布",
+                "stage": record.get("stage") or "test",
+                "cover": cover_url,
+                "created_at": record.get("created_at"),
+                "updated_at": record.get("updated_at"),
+                "snapshot": snapshot,
+            }
+        )
+
+    manifest = {
+        "schema_version": 1,
+        "format": "rh-canvas-workspace-zip",
+        "exported_at": datetime.now(timezone.utc).isoformat(),
+        "include_secrets": False,
+        "project_count": len(exported_projects),
+        "asset_count": len(path_to_arc),
+        "projects": exported_projects,
+    }
+
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, "w") as zf:
+        zf.writestr(
+            "workspace.json",
+            json.dumps(manifest, ensure_ascii=False, indent=2).encode("utf-8"),
+            compress_type=zipfile.ZIP_DEFLATED,
+        )
+        for real_path, arc_name in path_to_arc.items():
+            zf.write(real_path, arcname=arc_name, compress_type=zipfile.ZIP_STORED)
+
+    buf.seek(0)
+    stamp = datetime.now().strftime("%Y%m%d-%H%M%S")
+    return buf, f"rh-canvas-batch-{len(exported_projects)}-{stamp}.zip"

@@ -14,6 +14,9 @@ venv/
 .env.*
 data/settings.json
 
+# Test-stage canvases (only data/projects/online/ is tracked in Git)
+data/projects/test/
+
 # OS & editor files
 .DS_Store
 Thumbs.db

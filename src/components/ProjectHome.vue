@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onBeforeUnmount, onMounted, ref } from 'vue';
+import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue';
 import {
   Plus,
   Search,
@@ -15,6 +15,12 @@ import {
   ArrowUpCircle,
   ArrowDownCircle,
   FolderOpen,
+  Check,
+  X,
+  ImagePlus,
+  RotateCcw,
+  CheckSquare,
+  Square,
 } from 'lucide-vue-next';
 import { apiClient } from '@/api/client';
 import { useProjectsStore } from '@/stores/projects';
@@ -29,26 +35,80 @@ const projectsStore = useProjectsStore();
 const canvasStore = useCanvasStore();
 
 const busyId = ref<string | null>(null);
+const batchBusy = ref(false);
 const restarting = ref(false);
 const fileInput = ref<HTMLInputElement | null>(null);
+const coverInput = ref<HTMLInputElement | null>(null);
+const coverTargetId = ref<string | null>(null);
 
-const selectedId = ref<string | null>(null);
+const selectionMode = ref(false);
+const selectedIds = ref<string[]>([]);
+const activeContextId = ref<string | null>(null);
+const renamingId = ref<string | null>(null);
+const renameDraft = ref('');
+const renameInputRef = ref<HTMLInputElement[] | HTMLInputElement | null>(null);
 const contextMenu = ref<{
   x: number;
   y: number;
   project: ProjectSummary;
 } | null>(null);
 
+const selectedSet = computed(() => new Set(selectedIds.value));
+const selectedProjects = computed(() =>
+  projectsStore.projects.filter((p) => selectedSet.value.has(p.id)),
+);
+const selectedTestCount = computed(
+  () => selectedProjects.value.filter((p) => p.stage !== 'online').length,
+);
+const selectedOnlineCount = computed(
+  () => selectedProjects.value.filter((p) => p.stage === 'online').length,
+);
+const visibleProjects = computed(() => {
+  if (projectsStore.filter === 'online') return projectsStore.onlineProjects;
+  if (projectsStore.filter === 'test') return projectsStore.testProjects;
+  return [...projectsStore.onlineProjects, ...projectsStore.testProjects];
+});
+
+function isSelected(id: string) {
+  return selectedSet.value.has(id);
+}
+
+function toggleSelect(id: string) {
+  if (selectedSet.value.has(id)) {
+    selectedIds.value = selectedIds.value.filter((x) => x !== id);
+  } else {
+    selectedIds.value = [...selectedIds.value, id];
+  }
+}
+
+function selectAllVisible() {
+  selectedIds.value = visibleProjects.value.map((p) => p.id);
+}
+
+function clearSelection() {
+  selectedIds.value = [];
+  selectionMode.value = false;
+}
+
+function toggleSelectionMode() {
+  if (selectionMode.value) {
+    clearSelection();
+  } else {
+    selectionMode.value = true;
+  }
+}
+
 function closeContextMenu() {
   contextMenu.value = null;
+  activeContextId.value = null;
 }
 
 function openContextMenu(event: MouseEvent, project: ProjectSummary) {
   event.preventDefault();
   event.stopPropagation();
-  selectedId.value = project.id;
-  const menuW = 200;
-  const menuH = 260;
+  activeContextId.value = project.id;
+  const menuW = 210;
+  const menuH = 340;
   const x = Math.min(event.clientX, Math.max(8, window.innerWidth - menuW - 8));
   const y = Math.min(event.clientY, Math.max(8, window.innerHeight - menuH - 8));
   contextMenu.value = { x, y, project };
@@ -57,6 +117,7 @@ function openContextMenu(event: MouseEvent, project: ProjectSummary) {
 function handleGlobalKeydown(event: KeyboardEvent) {
   if (event.key === 'Escape') {
     closeContextMenu();
+    if (renamingId.value) cancelInlineRename();
   }
 }
 
@@ -104,6 +165,16 @@ async function handleCreateBlank() {
   }
 }
 
+function handleCardClick(event: MouseEvent, project: ProjectSummary) {
+  closeContextMenu();
+  if (renamingId.value === project.id) return;
+  if (selectionMode.value || selectedIds.value.length > 0 || event.ctrlKey || event.metaKey) {
+    toggleSelect(project.id);
+    return;
+  }
+  void handleOpen(project);
+}
+
 async function handleOpen(project: ProjectSummary) {
   closeContextMenu();
   if (busyId.value) return;
@@ -147,15 +218,73 @@ async function handleUnpublish(project: ProjectSummary) {
   }
 }
 
-async function handleRename(project: ProjectSummary) {
+function startInlineRename(project: ProjectSummary) {
   closeContextMenu();
-  const next = window.prompt('重命名画布', project.name);
-  if (!next || !next.trim() || next.trim() === project.name) return;
+  renamingId.value = project.id;
+  renameDraft.value = project.name;
+  nextTick(() => {
+    const el = Array.isArray(renameInputRef.value) ? renameInputRef.value[0] : renameInputRef.value;
+    if (el) {
+      el.focus();
+      el.select();
+    }
+  });
+}
+
+function cancelInlineRename() {
+  renamingId.value = null;
+  renameDraft.value = '';
+}
+
+async function commitInlineRename(project: ProjectSummary) {
+  if (renamingId.value !== project.id) return;
+  const trimmed = renameDraft.value.trim();
+  renamingId.value = null;
+  renameDraft.value = '';
+  if (!trimmed || trimmed === project.name) return;
   try {
-    await projectsStore.renameProject(project.id, next.trim());
+    await projectsStore.renameProject(project.id, trimmed);
     canvasStore.showToast('已重命名');
   } catch (err: any) {
     canvasStore.showToast(err?.message || '重命名失败');
+  }
+}
+
+function triggerChangeCover(project: ProjectSummary) {
+  closeContextMenu();
+  coverTargetId.value = project.id;
+  coverInput.value?.click();
+}
+
+async function handleCoverSelected(event: Event) {
+  const input = event.target as HTMLInputElement;
+  const file = input.files?.[0];
+  input.value = '';
+  const targetId = coverTargetId.value;
+  coverTargetId.value = null;
+  if (!file || !targetId) return;
+  busyId.value = targetId;
+  try {
+    const uploaded = await apiClient.uploadAsset(file);
+    await projectsStore.updateProjectCover(targetId, uploaded.asset.url);
+    canvasStore.showToast('已更新画布预览图');
+  } catch (err: any) {
+    canvasStore.showToast(`更换预览图失败：${err?.message || '未知错误'}`);
+  } finally {
+    busyId.value = null;
+  }
+}
+
+async function handleResetCover(project: ProjectSummary) {
+  closeContextMenu();
+  busyId.value = project.id;
+  try {
+    await projectsStore.updateProjectCover(project.id, '');
+    canvasStore.showToast('已恢复默认预览图');
+  } catch (err: any) {
+    canvasStore.showToast(err?.message || '恢复默认预览图失败');
+  } finally {
+    busyId.value = null;
   }
 }
 
@@ -177,10 +306,78 @@ async function handleDelete(project: ProjectSummary) {
   if (!window.confirm(`确定删除${stageLabel}画布「${project.name}」吗？此操作不可撤销。`)) return;
   try {
     await projectsStore.deleteProject(project.id);
-    if (selectedId.value === project.id) selectedId.value = null;
+    selectedIds.value = selectedIds.value.filter((x) => x !== project.id);
     canvasStore.showToast('已删除画布');
   } catch (err: any) {
     canvasStore.showToast(err?.message || '删除失败');
+  }
+}
+
+function triggerBlobDownload(blob: Blob, filename: string) {
+  const blobUrl = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = blobUrl;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  window.setTimeout(() => URL.revokeObjectURL(blobUrl), 2000);
+}
+
+async function handleExportSelected() {
+  if (!selectedIds.value.length || batchBusy.value) return;
+  batchBusy.value = true;
+  try {
+    canvasStore.showToast(`正在打包导出选中的 ${selectedIds.value.length} 个画布…`);
+    const { blob, filename } = await apiClient.exportSelectedProjectsZip(selectedIds.value);
+    triggerBlobDownload(blob, filename);
+    canvasStore.showToast(`已导出 ${selectedIds.value.length} 个画布 ZIP`);
+  } catch (err: any) {
+    canvasStore.showToast(`导出失败：${err?.message || '未知错误'}`);
+  } finally {
+    batchBusy.value = false;
+  }
+}
+
+async function handleBatchStage(target: 'online' | 'test') {
+  const targets = selectedProjects.value.filter((p) =>
+    target === 'online' ? p.stage !== 'online' : p.stage === 'online',
+  );
+  if (!targets.length || batchBusy.value) return;
+  batchBusy.value = true;
+  try {
+    for (const p of targets) {
+      await apiClient.setProjectStage(p.id, target);
+    }
+    await projectsStore.refreshList();
+    canvasStore.showToast(
+      target === 'online'
+        ? `已批量上架 ${targets.length} 个画布到上线版本`
+        : `已批量下架 ${targets.length} 个画布到测试版本`,
+    );
+    clearSelection();
+  } catch (err: any) {
+    canvasStore.showToast(err?.message || '批量操作失败');
+  } finally {
+    batchBusy.value = false;
+  }
+}
+
+async function handleBatchDelete() {
+  if (!selectedIds.value.length || batchBusy.value) return;
+  if (!window.confirm(`确定删除选中的 ${selectedIds.value.length} 个画布吗？此操作不可撤销。`)) return;
+  batchBusy.value = true;
+  try {
+    for (const id of [...selectedIds.value]) {
+      await apiClient.deleteProject(id);
+    }
+    await projectsStore.refreshList();
+    canvasStore.showToast(`已删除 ${selectedIds.value.length} 个画布`);
+    clearSelection();
+  } catch (err: any) {
+    canvasStore.showToast(err?.message || '批量删除失败');
+  } finally {
+    batchBusy.value = false;
   }
 }
 
@@ -207,64 +404,98 @@ function handleExportSingle(project: ProjectSummary) {
   canvasStore.showToast(`正在打包导出「${project.name}」…`);
 }
 
+async function importSingleFile(file: File, autoOpen: boolean) {
+  if (
+    file.name.toLowerCase().endsWith('.zip') ||
+    file.type === 'application/zip' ||
+    file.type === 'application/x-zip-compressed'
+  ) {
+    const res = await projectsStore.importProjectZip(file);
+    if (res.mode === 'workspace') {
+      const total = (res.imported_projects || 0) + (res.updated_projects || 0);
+      return { count: total, assets: res.imported_assets || 0, settings: Boolean(res.restored_settings) };
+    }
+    if (res.project) {
+      if (autoOpen) {
+        canvasStore.loadSnapshot(res.project.snapshot);
+      } else {
+        projectsStore.closeEditor();
+      }
+      return { count: 1, assets: res.imported_assets || 0, settings: false, name: res.project.name };
+    }
+    return { count: 0, assets: 0, settings: false };
+  }
+
+  const raw = JSON.parse(await file.text());
+  if (raw && (raw.format === 'rh-canvas-settings' || (raw.video_provider && !raw.canvas && !raw.snapshot && !raw.cards))) {
+    const cfg = raw.settings || raw;
+    await apiClient.saveConfig(cfg);
+    await projectsStore.checkHealth();
+    return { count: 0, assets: 0, settings: true };
+  }
+
+  let snapshot: CanvasSnapshot;
+  let name = file.name.replace(/\.json$/i, '');
+  if (raw.snapshot?.canvas?.cards) {
+    snapshot = raw.snapshot;
+    if (raw.name) name = raw.name;
+  } else if (raw.canvas?.cards) {
+    snapshot = raw;
+  } else if (Array.isArray(raw.cards)) {
+    snapshot = {
+      format: 'rh-canvas',
+      version: 1,
+      exportedAt: new Date().toISOString(),
+      schemaVersion: 1,
+      canvas: { cards: raw.cards, seq: raw.cards.length + 1, viewport: raw.viewport || { x: 60, y: 60, z: 0.9 } },
+    };
+  } else {
+    throw new Error(`${file.name} 格式不兼容`);
+  }
+  const project = await projectsStore.importProjectJson(name, snapshot, 'test');
+  if (autoOpen) {
+    canvasStore.loadSnapshot(project.snapshot);
+  } else {
+    projectsStore.closeEditor();
+  }
+  return { count: 1, assets: 0, settings: false, name: project.name };
+}
+
 async function handleImportFile(event: Event) {
   const input = event.target as HTMLInputElement;
-  const file = input.files?.[0];
+  const files = Array.from(input.files || []);
   input.value = '';
-  if (!file) return;
+  if (!files.length) return;
+  const isSingle = files.length === 1;
   try {
-    if (
-      file.name.toLowerCase().endsWith('.zip') ||
-      file.type === 'application/zip' ||
-      file.type === 'application/x-zip-compressed'
-    ) {
-      const res = await projectsStore.importProjectZip(file);
-      if (res.mode === 'workspace') {
-        const total = (res.imported_projects || 0) + (res.updated_projects || 0);
-        const parts = [`${total} 个画布`, `${res.imported_assets || 0} 份素材`];
-        if (res.restored_settings) parts.push('API 与渠道配置');
-        canvasStore.showToast(`一键迁移导入成功：已还原 ${parts.join('、')}`);
-        return;
-      }
-      if (res.project) {
-        canvasStore.loadSnapshot(res.project.snapshot);
-        canvasStore.showToast(
-          res.imported_assets > 0
-            ? `已导入到测试版本「${res.project.name}」（还原 ${res.imported_assets} 份素材）`
-            : `已导入到测试版本「${res.project.name}」`,
-        );
-      }
-      return;
+    let totalProjects = 0;
+    let totalAssets = 0;
+    let restoredSettings = false;
+    let singleName = '';
+
+    for (const file of files) {
+      const r = await importSingleFile(file, isSingle);
+      totalProjects += r.count;
+      totalAssets += r.assets;
+      if (r.settings) restoredSettings = true;
+      if (r.name) singleName = r.name;
     }
-    const raw = JSON.parse(await file.text());
-    if (raw && (raw.format === 'rh-canvas-settings' || (raw.video_provider && !raw.canvas && !raw.snapshot && !raw.cards))) {
-      const cfg = raw.settings || raw;
-      await apiClient.saveConfig(cfg);
-      await projectsStore.checkHealth();
-      canvasStore.showToast('已一键导入 API 与渠道配置');
-      return;
-    }
-    let snapshot: CanvasSnapshot;
-    let name = file.name.replace(/\.json$/i, '');
-    if (raw.snapshot?.canvas?.cards) {
-      snapshot = raw.snapshot;
-      if (raw.name) name = raw.name;
-    } else if (raw.canvas?.cards) {
-      snapshot = raw;
-    } else if (Array.isArray(raw.cards)) {
-      snapshot = {
-        format: 'rh-canvas',
-        version: 1,
-        exportedAt: new Date().toISOString(),
-        schemaVersion: 1,
-        canvas: { cards: raw.cards, seq: raw.cards.length + 1, viewport: raw.viewport || { x: 60, y: 60, z: 0.9 } },
-      };
+
+    await projectsStore.refreshList();
+
+    if (isSingle && singleName) {
+      canvasStore.showToast(
+        totalAssets > 0
+          ? `已导入「${singleName}」（还原 ${totalAssets} 份素材）`
+          : `已导入「${singleName}」`,
+      );
     } else {
-      throw new Error('JSON 格式不兼容，缺少 canvas.cards 或配置字段');
+      const parts: string[] = [];
+      if (totalProjects > 0) parts.push(`${totalProjects} 个画布`);
+      if (totalAssets > 0) parts.push(`${totalAssets} 份素材`);
+      if (restoredSettings) parts.push('API 与渠道配置');
+      canvasStore.showToast(`导入成功：已还原 ${parts.join('、') || '配置'}`);
     }
-    const project = await projectsStore.importProjectJson(name, snapshot, 'test');
-    canvasStore.loadSnapshot(project.snapshot);
-    canvasStore.showToast(`已导入到测试版本「${project.name}」`);
   } catch (err: any) {
     canvasStore.showToast(`导入失败：${err?.message || '无效文件'}`);
   }
@@ -286,7 +517,7 @@ function formatTime(iso: string) {
 </script>
 
 <template>
-  <div class="home-shell" @click="selectedId = null">
+  <div class="home-shell">
     <header class="home-header">
       <div class="brand">
         <div class="logo" aria-hidden="true">
@@ -300,7 +531,7 @@ function formatTime(iso: string) {
         </div>
         <div>
           <h1>全部画布</h1>
-          <p>上线版本与测试版本分目录存储，右键画布可快速上架 / 下架（独立 Vue 3 + Python 服务）</p>
+          <p>上线版本同步 GitHub，测试版本本地忽略；支持单选/多选导入导出与自定义 2:3 预览图</p>
         </div>
       </div>
 
@@ -325,13 +556,32 @@ function formatTime(iso: string) {
         </button>
         <button class="btn" type="button" title="一键打包全部画布、本地素材与 API 配置用于迁移" @click="handleExportWorkspace">
           <Download :size="15" />
-          一键导出配置
+          全量导出
         </button>
-        <button class="btn" type="button" title="支持迁移包 ZIP、单画布 ZIP/JSON 或 API 配置 JSON" @click="fileInput?.click()">
+        <button
+          class="btn"
+          type="button"
+          title="支持单选或多选导入画布 ZIP/JSON、迁移包或配置文件"
+          @click="fileInput?.click()"
+        >
           <Upload :size="15" />
-          一键导入配置
+          导入画布
         </button>
-        <input ref="fileInput" type="file" accept=".zip,.json,application/zip,application/json" hidden @change="handleImportFile" />
+        <input
+          ref="fileInput"
+          type="file"
+          accept=".zip,.json,application/zip,application/json"
+          multiple
+          hidden
+          @change="handleImportFile"
+        />
+        <input
+          ref="coverInput"
+          type="file"
+          accept="image/*"
+          hidden
+          @change="handleCoverSelected"
+        />
         <button class="btn primary" type="button" :disabled="busyId !== null" @click="handleCreateBlank">
           <Plus :size="16" />
           新建空白画布
@@ -368,6 +618,17 @@ function formatTime(iso: string) {
       </div>
 
       <div class="toolbar-right">
+        <button
+          class="btn"
+          :class="{ 'btn-active': selectionMode || selectedIds.length > 0 }"
+          type="button"
+          title="开启多选以批量导出、上架或删除画布"
+          @click="toggleSelectionMode"
+        >
+          <CheckSquare v-if="selectionMode || selectedIds.length > 0" :size="14" />
+          <Square v-else :size="14" />
+          {{ selectedIds.length > 0 ? `已选 ${selectedIds.length}` : selectionMode ? '退出多选' : '多选' }}
+        </button>
         <div class="search-box">
           <Search :size="14" class="search-icon" />
           <input v-model="projectsStore.search" class="field search-input" placeholder="搜索上线版本或测试版本…" />
@@ -378,6 +639,57 @@ function formatTime(iso: string) {
         </select>
         <button class="btn icon" type="button" title="刷新列表" @click="projectsStore.refreshList()">
           <RefreshCw :size="14" />
+        </button>
+      </div>
+    </div>
+
+    <!-- 多选批量操作条 -->
+    <div v-if="selectionMode || selectedIds.length > 0" class="bulk-bar">
+      <div class="bulk-left">
+        <span class="bulk-count">已选择 <strong>{{ selectedIds.length }}</strong> 个画布</span>
+        <button class="btn" type="button" @click="selectAllVisible">
+          全选当前 ({{ visibleProjects.length }})
+        </button>
+        <button class="btn" type="button" @click="clearSelection">取消选择</button>
+      </div>
+      <div class="bulk-actions">
+        <button
+          class="btn primary"
+          type="button"
+          :disabled="!selectedIds.length || batchBusy"
+          @click="handleExportSelected"
+        >
+          <Download :size="14" />
+          导出选中 ZIP ({{ selectedIds.length }})
+        </button>
+        <button
+          v-if="selectedTestCount > 0"
+          class="btn"
+          type="button"
+          :disabled="batchBusy"
+          @click="handleBatchStage('online')"
+        >
+          <ArrowUpCircle :size="14" />
+          批量上架 ({{ selectedTestCount }})
+        </button>
+        <button
+          v-if="selectedOnlineCount > 0"
+          class="btn"
+          type="button"
+          :disabled="batchBusy"
+          @click="handleBatchStage('test')"
+        >
+          <ArrowDownCircle :size="14" />
+          批量下架 ({{ selectedOnlineCount }})
+        </button>
+        <button
+          class="btn danger"
+          type="button"
+          :disabled="!selectedIds.length || batchBusy"
+          @click="handleBatchDelete"
+        >
+          <Trash2 :size="14" />
+          批量删除
         </button>
       </div>
     </div>
@@ -397,7 +709,7 @@ function formatTime(iso: string) {
             <span class="section-count online">{{ projectsStore.onlineProjects.length }}</span>
           </h2>
           <span class="section-sub" :title="projectsStore.stageDirs?.online || 'data/projects/online'">
-            目录 data/projects/online · 单击打开，右键可下架
+            目录 data/projects/online · 同步 GitHub · 双击改名，右键可下架或换图
           </span>
         </div>
 
@@ -406,7 +718,7 @@ function formatTime(iso: string) {
         </div>
         <div v-else-if="!projectsStore.onlineProjects.length" class="empty-state compact">
           <p v-if="projectsStore.search">上线版本中没有匹配「{{ projectsStore.search }}」的画布</p>
-          <p v-else>暂无上线版本，可在下方「测试版本」中选中画布右键点击「上架到上线版本」</p>
+          <p v-else>暂无上线版本，点击下方测试画布右上角「↑」或右键选择「上架到上线版本」</p>
           <button v-if="projectsStore.search" class="btn" type="button" @click="projectsStore.search = ''">
             清空搜索
           </button>
@@ -416,8 +728,11 @@ function formatTime(iso: string) {
             v-for="proj in projectsStore.onlineProjects"
             :key="proj.id"
             class="proj-card online-card"
-            :class="{ selected: selectedId === proj.id }"
-            @click.stop="handleOpen(proj)"
+            :class="{
+              selected: isSelected(proj.id) || activeContextId === proj.id,
+              checked: isSelected(proj.id),
+            }"
+            @click="handleCardClick($event, proj)"
             @contextmenu="openContextMenu($event, proj)"
           >
             <div class="proj-thumb">
@@ -426,6 +741,15 @@ function formatTime(iso: string) {
                 <span>◇</span>
                 <small>{{ proj.node_count }} 个节点</small>
               </div>
+              <button
+                type="button"
+                class="select-check"
+                :class="{ visible: selectionMode || selectedIds.length > 0 || isSelected(proj.id), active: isSelected(proj.id) }"
+                :title="isSelected(proj.id) ? '取消选中' : '选中画布'"
+                @click.stop="toggleSelect(proj.id)"
+              >
+                <Check v-if="isSelected(proj.id)" :size="12" />
+              </button>
               <span class="stage-badge online">上线</span>
               <div class="proj-actions" @click.stop>
                 <button
@@ -437,14 +761,14 @@ function formatTime(iso: string) {
                 >
                   <ArrowDownCircle :size="13" />
                 </button>
+                <button class="btn icon" title="更换预览图" type="button" @click="triggerChangeCover(proj)">
+                  <ImagePlus :size="13" />
+                </button>
                 <button class="btn icon" title="导出画布 ZIP（含素材）" type="button" @click="handleExportSingle(proj)">
                   <Download :size="13" />
                 </button>
-                <button class="btn icon" title="重命名" type="button" @click="handleRename(proj)">
+                <button class="btn icon" title="重命名" type="button" @click="startInlineRename(proj)">
                   <Pencil :size="13" />
-                </button>
-                <button class="btn icon" title="复制副本到测试版本" type="button" @click="handleDuplicate(proj)">
-                  <Copy :size="13" />
                 </button>
                 <button class="btn icon danger" title="删除" type="button" @click="handleDelete(proj)">
                   <Trash2 :size="13" />
@@ -452,10 +776,45 @@ function formatTime(iso: string) {
               </div>
             </div>
             <div class="proj-meta">
-              <strong :title="proj.name">{{ proj.name }}</strong>
+              <div v-if="renamingId === proj.id" class="rename-row" @click.stop @dblclick.stop>
+                <input
+                  ref="renameInputRef"
+                  v-model="renameDraft"
+                  class="field rename-input"
+                  maxlength="80"
+                  @keydown.enter.prevent="commitInlineRename(proj)"
+                  @keydown.esc.prevent="cancelInlineRename"
+                  @blur="commitInlineRename(proj)"
+                />
+                <button
+                  class="btn icon confirm"
+                  type="button"
+                  title="确认重命名"
+                  @mousedown.prevent="commitInlineRename(proj)"
+                >
+                  <Check :size="13" />
+                </button>
+                <button
+                  class="btn icon"
+                  type="button"
+                  title="取消"
+                  @mousedown.prevent="cancelInlineRename"
+                >
+                  <X :size="13" />
+                </button>
+              </div>
+              <strong
+                v-else
+                class="proj-name"
+                :title="`${proj.name}（双击重命名）`"
+                @click.stop="selectionMode || selectedIds.length ? toggleSelect(proj.id) : null"
+                @dblclick.stop="startInlineRename(proj)"
+              >
+                {{ proj.name }}
+              </strong>
               <div class="proj-sub">
                 <span>{{ proj.node_count }} 节点</span>
-                <span>最近修改 {{ formatTime(proj.updated_at) }}</span>
+                <span>{{ formatTime(proj.updated_at) }}</span>
               </div>
             </div>
           </article>
@@ -471,7 +830,7 @@ function formatTime(iso: string) {
             <span class="section-count">{{ projectsStore.testProjects.length }}</span>
           </h2>
           <span class="section-sub" :title="projectsStore.stageDirs?.test || 'data/projects/test'">
-            目录 data/projects/test · 临时创建与调试，测试通过后右键可上架
+            目录 data/projects/test · 本地忽略 · 测试通过后点「↑」或右键上架
           </span>
         </div>
 
@@ -490,8 +849,11 @@ function formatTime(iso: string) {
             v-for="proj in projectsStore.testProjects"
             :key="proj.id"
             class="proj-card"
-            :class="{ selected: selectedId === proj.id }"
-            @click.stop="handleOpen(proj)"
+            :class="{
+              selected: isSelected(proj.id) || activeContextId === proj.id,
+              checked: isSelected(proj.id),
+            }"
+            @click="handleCardClick($event, proj)"
             @contextmenu="openContextMenu($event, proj)"
           >
             <div class="proj-thumb">
@@ -500,6 +862,15 @@ function formatTime(iso: string) {
                 <span>◇</span>
                 <small>{{ proj.node_count }} 个节点</small>
               </div>
+              <button
+                type="button"
+                class="select-check"
+                :class="{ visible: selectionMode || selectedIds.length > 0 || isSelected(proj.id), active: isSelected(proj.id) }"
+                :title="isSelected(proj.id) ? '取消选中' : '选中画布'"
+                @click.stop="toggleSelect(proj.id)"
+              >
+                <Check v-if="isSelected(proj.id)" :size="12" />
+              </button>
               <div class="proj-actions" @click.stop>
                 <button
                   class="btn icon publish"
@@ -510,14 +881,14 @@ function formatTime(iso: string) {
                 >
                   <ArrowUpCircle :size="13" />
                 </button>
+                <button class="btn icon" title="更换预览图" type="button" @click="triggerChangeCover(proj)">
+                  <ImagePlus :size="13" />
+                </button>
                 <button class="btn icon" title="导出画布 ZIP（含素材）" type="button" @click="handleExportSingle(proj)">
                   <Download :size="13" />
                 </button>
-                <button class="btn icon" title="重命名" type="button" @click="handleRename(proj)">
+                <button class="btn icon" title="重命名" type="button" @click="startInlineRename(proj)">
                   <Pencil :size="13" />
-                </button>
-                <button class="btn icon" title="复制副本" type="button" @click="handleDuplicate(proj)">
-                  <Copy :size="13" />
                 </button>
                 <button class="btn icon danger" title="删除" type="button" @click="handleDelete(proj)">
                   <Trash2 :size="13" />
@@ -525,10 +896,45 @@ function formatTime(iso: string) {
               </div>
             </div>
             <div class="proj-meta">
-              <strong :title="proj.name">{{ proj.name }}</strong>
+              <div v-if="renamingId === proj.id" class="rename-row" @click.stop @dblclick.stop>
+                <input
+                  ref="renameInputRef"
+                  v-model="renameDraft"
+                  class="field rename-input"
+                  maxlength="80"
+                  @keydown.enter.prevent="commitInlineRename(proj)"
+                  @keydown.esc.prevent="cancelInlineRename"
+                  @blur="commitInlineRename(proj)"
+                />
+                <button
+                  class="btn icon confirm"
+                  type="button"
+                  title="确认重命名"
+                  @mousedown.prevent="commitInlineRename(proj)"
+                >
+                  <Check :size="13" />
+                </button>
+                <button
+                  class="btn icon"
+                  type="button"
+                  title="取消"
+                  @mousedown.prevent="cancelInlineRename"
+                >
+                  <X :size="13" />
+                </button>
+              </div>
+              <strong
+                v-else
+                class="proj-name"
+                :title="`${proj.name}（双击重命名）`"
+                @click.stop="selectionMode || selectedIds.length ? toggleSelect(proj.id) : null"
+                @dblclick.stop="startInlineRename(proj)"
+              >
+                {{ proj.name }}
+              </strong>
               <div class="proj-sub">
                 <span>{{ proj.node_count }} 节点</span>
-                <span>最近修改 {{ formatTime(proj.updated_at) }}</span>
+                <span>{{ formatTime(proj.updated_at) }}</span>
               </div>
             </div>
           </article>
@@ -571,7 +977,20 @@ function formatTime(iso: string) {
           <span>下架到测试版本</span>
         </button>
         <div class="ctx-sep" />
-        <button type="button" class="ctx-item" @click="handleRename(contextMenu.project)">
+        <button type="button" class="ctx-item" @click="triggerChangeCover(contextMenu.project)">
+          <ImagePlus :size="14" />
+          <span>更换预览图</span>
+        </button>
+        <button
+          v-if="contextMenu.project.has_custom_cover"
+          type="button"
+          class="ctx-item"
+          @click="handleResetCover(contextMenu.project)"
+        >
+          <RotateCcw :size="14" />
+          <span>恢复默认预览图</span>
+        </button>
+        <button type="button" class="ctx-item" @click="startInlineRename(contextMenu.project)">
           <Pencil :size="14" />
           <span>重命名</span>
         </button>
@@ -582,6 +1001,17 @@ function formatTime(iso: string) {
         <button type="button" class="ctx-item" @click="handleExportSingle(contextMenu.project)">
           <Download :size="14" />
           <span>导出画布 ZIP</span>
+        </button>
+        <button
+          type="button"
+          class="ctx-item"
+          @click="
+            toggleSelect(contextMenu.project.id);
+            closeContextMenu();
+          "
+        >
+          <CheckSquare :size="14" />
+          <span>{{ isSelected(contextMenu.project.id) ? '取消选中' : '选中画布（多选）' }}</span>
         </button>
         <div class="ctx-sep" />
         <button type="button" class="ctx-item danger" @click="handleDelete(contextMenu.project)">
@@ -715,6 +1145,12 @@ function formatTime(iso: string) {
   gap: 8px;
 }
 
+.btn-active {
+  border-color: var(--accent-border);
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
 .search-box {
   position: relative;
   width: 240px;
@@ -734,6 +1170,34 @@ function formatTime(iso: string) {
 
 .sort-select {
   width: 132px;
+}
+
+.bulk-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 26px;
+  background: rgba(204, 255, 0, 0.06);
+  border-bottom: 1px solid var(--accent-border);
+}
+
+.bulk-left,
+.bulk-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.bulk-count {
+  font-size: 13px;
+  color: var(--text);
+  margin-right: 4px;
+}
+
+.bulk-count strong {
+  color: var(--accent);
 }
 
 .home-body {
@@ -805,8 +1269,8 @@ function formatTime(iso: string) {
 
 .card-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-  gap: 14px;
+  grid-template-columns: repeat(auto-fill, minmax(192px, 224px));
+  gap: 16px;
 }
 
 .proj-card {
@@ -837,7 +1301,8 @@ function formatTime(iso: string) {
 
 .proj-thumb {
   position: relative;
-  height: 148px;
+  width: 100%;
+  aspect-ratio: 2 / 3;
   background: radial-gradient(circle at 20% 20%, rgba(116, 213, 139, 0.14), transparent 60%), var(--panel-2);
   display: grid;
   place-items: center;
@@ -859,14 +1324,43 @@ function formatTime(iso: string) {
 }
 
 .proj-placeholder span {
-  font-size: 32px;
+  font-size: 36px;
   color: var(--accent);
   opacity: 0.7;
 }
 
-.stage-badge {
+.select-check {
   position: absolute;
   top: 8px;
+  left: 8px;
+  z-index: 3;
+  width: 22px;
+  height: 22px;
+  border-radius: 6px;
+  border: 1.5px solid rgba(255, 255, 255, 0.55);
+  background: rgba(17, 19, 23, 0.72);
+  color: #111317;
+  display: grid;
+  place-items: center;
+  opacity: 0;
+  cursor: pointer;
+  transition: opacity 0.14s ease, background 0.14s ease, border-color 0.14s ease;
+}
+
+.proj-card:hover .select-check,
+.select-check.visible {
+  opacity: 1;
+}
+
+.select-check.active {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #111317;
+}
+
+.stage-badge {
+  position: absolute;
+  bottom: 8px;
   left: 8px;
   padding: 2px 8px;
   border-radius: 999px;
@@ -896,8 +1390,9 @@ function formatTime(iso: string) {
 }
 
 .proj-actions .btn {
-  width: 28px;
-  min-height: 28px;
+  width: 27px;
+  min-height: 27px;
+  padding: 0;
   background: rgba(17, 19, 23, 0.85);
 }
 
@@ -912,16 +1407,54 @@ function formatTime(iso: string) {
 }
 
 .proj-meta {
-  padding: 12px 14px;
+  padding: 10px 12px;
   display: flex;
   flex-direction: column;
   gap: 4px;
 }
 
-.proj-meta strong {
+.proj-meta strong.proj-name {
+  font-size: 13px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  padding: 2px 4px;
+  margin: -2px -4px;
+  border-radius: 6px;
+  cursor: text;
+  transition: background 0.14s ease;
+}
+
+.proj-meta strong.proj-name:hover {
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.rename-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.rename-input {
+  flex: 1;
+  min-width: 0;
+  height: 26px;
+  padding: 2px 7px;
+  font-size: 12.5px;
+  font-weight: 600;
+}
+
+.rename-row .btn.icon {
+  width: 24px;
+  height: 24px;
+  min-height: 24px;
+  flex-shrink: 0;
+}
+
+.rename-row .btn.icon.confirm {
+  color: var(--accent);
+  border-color: var(--accent-border);
+  background: var(--accent-soft);
 }
 
 .proj-sub {
@@ -950,7 +1483,7 @@ function formatTime(iso: string) {
 .ctx-menu {
   position: fixed;
   z-index: 1200;
-  min-width: 192px;
+  min-width: 196px;
   padding: 6px;
   border-radius: 12px;
   background: rgba(24, 26, 31, 0.96);

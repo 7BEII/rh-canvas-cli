@@ -3,7 +3,7 @@
   "id": "canvas-6548a19f88954a61bc80f608343ed1e7",
   "name": "LibTV 复刻 · Group 5 精简版",
   "created_at": "2026-11-24T15:03:51.585272+00:00",
-  "updated_at": "2026-11-24T15:13:03.467487+00:00",
+  "updated_at": "2026-11-25T10:28:33.920843+00:00",
   "node_count": 9,
   "snapshot": {
     "format": "rh-canvas",
@@ -251,5 +251,6 @@
         "z": 0.65
       }
     }
-  }
+  },
+  "stage": "online"
 }

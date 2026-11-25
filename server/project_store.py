@@ -162,6 +162,7 @@ class ProjectStore:
 
     def _summary(self, record: dict[str, Any], *, stage: str) -> dict[str, Any]:
         snapshot = record.get("snapshot") or {}
+        cover = str(record.get("cover") or "").strip()
         return {
             "schema_version": record.get("schema_version", SCHEMA_VERSION),
             "id": record["id"],
@@ -170,7 +171,8 @@ class ProjectStore:
             "created_at": record.get("created_at") or "",
             "updated_at": record.get("updated_at") or "",
             "node_count": _count_nodes(snapshot),
-            "thumbnail": _extract_thumbnail(snapshot),
+            "thumbnail": cover or _extract_thumbnail(snapshot),
+            "has_custom_cover": bool(cover),
         }
 
     def list(self, *, stage: str | None = None) -> list[dict[str, Any]]:
@@ -201,13 +203,14 @@ class ProjectStore:
         name: str = DEFAULT_PROJECT_NAME,
         snapshot: dict[str, Any] | None = None,
         stage: str = STAGE_TEST,
+        cover: str = "",
     ) -> dict[str, Any]:
         with self._lock:
             norm_stage = normalize_stage(stage, default=STAGE_TEST)
             project_id = f"canvas-{uuid4().hex}"
             now = _now_iso()
             snap = snapshot if isinstance(snapshot, dict) else _default_snapshot()
-            record = {
+            record: dict[str, Any] = {
                 "schema_version": SCHEMA_VERSION,
                 "id": project_id,
                 "name": _sanitize_name(name),
@@ -217,6 +220,9 @@ class ProjectStore:
                 "node_count": _count_nodes(snap),
                 "snapshot": snap,
             }
+            clean_cover = str(cover or "").strip()
+            if clean_cover:
+                record["cover"] = clean_cover
             self._atomic_write(self._path_for_stage(project_id, norm_stage), record)
             return record
 
@@ -226,6 +232,7 @@ class ProjectStore:
         *,
         name: str | None = None,
         snapshot: dict[str, Any] | None = None,
+        cover: str | None = None,
     ) -> dict[str, Any]:
         with self._lock:
             stage, path = self._locate(project_id)
@@ -237,6 +244,12 @@ class ProjectStore:
                     raise ValueError("snapshot 必须是对象")
                 record["snapshot"] = snapshot
                 record["node_count"] = _count_nodes(snapshot)
+            if cover is not None:
+                clean_cover = str(cover).strip()
+                if clean_cover:
+                    record["cover"] = clean_cover
+                else:
+                    record.pop("cover", None)
             record["stage"] = stage
             record["updated_at"] = _now_iso()
             self._atomic_write(path, record)
@@ -261,7 +274,12 @@ class ProjectStore:
         with self._lock:
             source = self.get(project_id)
             copy_name = f"{source.get('name') or DEFAULT_PROJECT_NAME} 副本"
-            return self.create(name=copy_name, snapshot=source.get("snapshot"), stage=STAGE_TEST)
+            return self.create(
+                name=copy_name,
+                snapshot=source.get("snapshot"),
+                stage=STAGE_TEST,
+                cover=str(source.get("cover") or ""),
+            )
 
     def delete(self, project_id: str) -> None:
         with self._lock:

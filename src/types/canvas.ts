@@ -115,6 +115,7 @@ export interface ProjectSummary {
   updated_at: string;
   node_count: number;
   thumbnail?: string;
+  has_custom_cover?: boolean;
 }
 
 export interface ProjectRecord extends ProjectSummary {

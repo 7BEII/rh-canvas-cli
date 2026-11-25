@@ -20,6 +20,7 @@ from .tensor_client import TensorCanvasClient, resolve_tensor_base_url, resolve_
 from .workflow_runner import WorkflowRunner
 from .zip_bundle import (
     export_project_zip,
+    export_selected_projects_zip,
     export_workspace_zip,
     import_project_zip,
     import_workspace_zip,
@@ -201,6 +202,7 @@ def create_app() -> Flask:
                 project_id,
                 name=payload.get("name"),
                 snapshot=payload.get("snapshot"),
+                cover=payload.get("cover"),
             )
             return jsonify({"success": True, "project": record})
         except FileNotFoundError as exc:
@@ -239,6 +241,30 @@ def create_app() -> Flask:
             return _json_error(exc, 404)
         except ValueError as exc:
             return _json_error(exc, 400)
+
+    @app.post("/api/projects/export-zip")
+    def export_selected_as_zip():
+        payload: dict[str, Any] = request.get_json(silent=True) or {}
+        project_ids = payload.get("project_ids")
+        if not isinstance(project_ids, list) or not project_ids:
+            return _json_error("请至少选择一个画布", 400)
+        try:
+            buf, download_name = export_selected_projects_zip(
+                [str(pid) for pid in project_ids],
+                projects=projects,
+                assets=assets,
+                settings=settings,
+            )
+            return send_file(
+                buf,
+                mimetype="application/zip",
+                as_attachment=True,
+                download_name=download_name,
+            )
+        except FileNotFoundError as exc:
+            return _json_error(exc, 404)
+        except Exception as exc:
+            return _json_error(f"批量导出失败：{exc}", 400)
 
     @app.get("/api/projects/<project_id>/export-zip")
     def export_project_as_zip(project_id: str):

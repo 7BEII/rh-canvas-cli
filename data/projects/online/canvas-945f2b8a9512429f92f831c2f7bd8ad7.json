@@ -3,24 +3,21 @@
   "id": "canvas-945f2b8a9512429f92f831c2f7bd8ad7",
   "name": "LibTV 复刻 · Group 4 精简版",
   "created_at": "2026-11-24T15:03:51.377586+00:00",
-  "updated_at": "2026-11-24T15:13:03.465979+00:00",
+  "updated_at": "2026-11-25T10:51:43.780529+00:00",
   "node_count": 10,
   "snapshot": {
     "format": "rh-canvas",
     "version": 1,
-    "exportedAt": "2026-11-24T15:13:03.465979+00:00",
+    "exportedAt": "2026-11-25T10:51:43.777Z",
     "schemaVersion": 1,
     "canvas": {
       "cards": [
         {
+          "activeResultIndex": 0,
+          "height": 92,
           "id": "g4-2-i-UdJm4qqGlm",
-          "type": "source",
           "mediaKind": "image",
           "name": "人物三视图素材",
-          "x": 60,
-          "y": 20,
-          "width": 156,
-          "height": 92,
           "refs": [],
           "results": [
             {
@@ -30,19 +27,20 @@
               "url": "/api/assets/input/libtv-g4-i-UdJm4qqGlm.png"
             }
           ],
-          "activeResultIndex": 0,
+          "selected": false,
           "status": "done",
-          "selected": false
+          "type": "source",
+          "width": 156,
+          "x": 60,
+          "y": 20,
+          "error": ""
         },
         {
+          "activeResultIndex": 0,
+          "height": 148,
           "id": "g4-3-v-AqwtB8AZGh",
-          "type": "source",
           "mediaKind": "video",
           "name": "深度动作参考",
-          "x": 60,
-          "y": 142,
-          "width": 148,
-          "height": 148,
           "refs": [],
           "results": [
             {
@@ -52,19 +50,20 @@
               "url": "/api/assets/input/libtv-g4-v-AqwtB8AZGh.mp4"
             }
           ],
-          "activeResultIndex": 0,
+          "selected": false,
           "status": "done",
-          "selected": false
+          "type": "source",
+          "width": 148,
+          "x": 60,
+          "y": 142,
+          "error": ""
         },
         {
+          "activeResultIndex": 0,
+          "height": 100,
           "id": "g4-4-a-AoS5zm5ULF",
-          "type": "source",
           "mediaKind": "audio",
           "name": "背景音乐",
-          "x": 224,
-          "y": 142,
-          "width": 156,
-          "height": 100,
           "refs": [],
           "results": [
             {
@@ -74,19 +73,20 @@
               "url": "/api/assets/input/libtv-g4-a-AoS5zm5ULF.mp3"
             }
           ],
-          "activeResultIndex": 0,
+          "selected": false,
           "status": "done",
-          "selected": false
+          "type": "source",
+          "width": 156,
+          "x": 224,
+          "y": 142,
+          "error": ""
         },
         {
+          "activeResultIndex": 0,
+          "height": 198,
           "id": "g4-5-i-wsU6c9cLU8",
-          "type": "source",
           "mediaKind": "image",
           "name": "场景1",
-          "x": 60,
-          "y": 334,
-          "width": 148,
-          "height": 198,
           "refs": [],
           "results": [
             {
@@ -96,19 +96,20 @@
               "url": "/api/assets/input/libtv-g4-i-wsU6c9cLU8.png"
             }
           ],
-          "activeResultIndex": 0,
+          "selected": false,
           "status": "done",
-          "selected": false
+          "type": "source",
+          "width": 148,
+          "x": 60,
+          "y": 334,
+          "error": ""
         },
         {
+          "activeResultIndex": 0,
+          "height": 198,
           "id": "g4-6-i-dXAAH246xb",
-          "type": "source",
           "mediaKind": "image",
           "name": "场景2",
-          "x": 224,
-          "y": 334,
-          "width": 148,
-          "height": 198,
           "refs": [],
           "results": [
             {
@@ -118,19 +119,20 @@
               "url": "/api/assets/input/libtv-g4-i-dXAAH246xb.png"
             }
           ],
-          "activeResultIndex": 0,
+          "selected": false,
           "status": "done",
-          "selected": false
+          "type": "source",
+          "width": 148,
+          "x": 224,
+          "y": 334,
+          "error": ""
         },
         {
+          "activeResultIndex": 0,
+          "height": 198,
           "id": "g4-7-i-fmPRbcfq2A",
-          "type": "source",
           "mediaKind": "image",
           "name": "场景3",
-          "x": 388,
-          "y": 334,
-          "width": 148,
-          "height": 198,
           "refs": [],
           "results": [
             {
@@ -140,19 +142,20 @@
               "url": "/api/assets/input/libtv-g4-i-fmPRbcfq2A.png"
             }
           ],
-          "activeResultIndex": 0,
+          "selected": false,
           "status": "done",
-          "selected": false
+          "type": "source",
+          "width": 148,
+          "x": 388,
+          "y": 334,
+          "error": ""
         },
         {
+          "activeResultIndex": 0,
+          "height": 198,
           "id": "g4-8-i-YYcFNeibJH",
-          "type": "source",
           "mediaKind": "image",
           "name": "场景4",
-          "x": 552,
-          "y": 334,
-          "width": 148,
-          "height": 198,
           "refs": [],
           "results": [
             {
@@ -162,19 +165,20 @@
               "url": "/api/assets/input/libtv-g4-i-YYcFNeibJH.png"
             }
           ],
-          "activeResultIndex": 0,
+          "selected": false,
           "status": "done",
-          "selected": false
+          "type": "source",
+          "width": 148,
+          "x": 552,
+          "y": 334,
+          "error": ""
         },
         {
+          "activeResultIndex": 0,
+          "height": 198,
           "id": "g4-9-i-7vq4Mo1Ncd",
-          "type": "source",
           "mediaKind": "image",
           "name": "场景5",
-          "x": 60,
-          "y": 564,
-          "width": 148,
-          "height": 198,
           "refs": [],
           "results": [
             {
@@ -184,19 +188,20 @@
               "url": "/api/assets/input/libtv-g4-i-7vq4Mo1Ncd.png"
             }
           ],
-          "activeResultIndex": 0,
+          "selected": false,
           "status": "done",
-          "selected": false
+          "type": "source",
+          "width": 148,
+          "x": 60,
+          "y": 564,
+          "error": ""
         },
         {
+          "activeResultIndex": 0,
+          "height": 198,
           "id": "g4-10-i-SzuwjyneNa",
-          "type": "source",
           "mediaKind": "image",
           "name": "场景6",
-          "x": 224,
-          "y": 564,
-          "width": 148,
-          "height": 198,
           "refs": [],
           "results": [
             {
@@ -206,29 +211,26 @@
               "url": "/api/assets/input/libtv-g4-i-SzuwjyneNa.png"
             }
           ],
-          "activeResultIndex": 0,
+          "selected": false,
           "status": "done",
-          "selected": false
+          "type": "source",
+          "width": 148,
+          "x": 224,
+          "y": 564,
+          "error": ""
         },
         {
-          "id": "g4-1-v-2ggRPfIHv0",
-          "type": "video",
-          "name": "视频成片",
-          "x": 800,
-          "y": 160,
-          "width": 210,
-          "height": 290,
-          "model": "tensor:SEEDANCE_2_5_FLASH",
-          "videoMode": "omni",
           "aspect": "9:16",
-          "resolution": "720p",
+          "batchCount": 1,
           "duration": 15,
           "generateAudio": true,
-          "batchCount": 1,
-          "quality": "standard",
-          "stylePreset": "古风奇幻",
-          "prompt": "参考视频 @视频1  深度信息及镜头切换节奏，整体的音乐使用 @音频1  这一段音乐；\n\n @图片1  （人物三视图）为女孩人物形象，人物特征以 @图片1  为唯一标准，不可自行更改。\n\n分镜执行（动作/运镜/场景严格参照 @视频1  对应时间段，人物形象严格参照 @图片1  ）：\n\n镜头 1 ｜ 0.0–4.0s（4.0s）\n@视频1  对应画面， @图片1  为人物， @图片2  为这一段场景\n景别/机位：大远景，平视，镜头缓慢向前推进\n画面：开阔高山湖泊，碧蓝湖水倒映山林，右侧针叶林夹杂金黄秋树，远处雪山连绵，前景枯黄草地与木栈道，女子背对镜头立于扶栏旁，阳光照射在她的身上\n\n镜头 2 ｜ 4.0–6.2s（2.2s）\n@视频1  对应画面， @图片1  为人物， @图片3  为这一段场景\n景别/机位：中近景推至脸部特写，平视侧拍，固定机位\n画面：女子侧对镜头，发间别淡紫小花，珠串项链、毛绒披肩与刺绣长袍清晰，怀抱白紫花束，低头侧脸轻嗅花朵，背景蓝绿湖水与金黄林木虚化，逆光照射在人物身上，背景虚化，大光圈浅景深。\n\n镜头 3 ｜ 6.2–8.5s（2.3s）\n@视频1  对应画面， @图片1  为人物， @图片4  为这一段场景\n景别/机位：中全景，平视，固定机位\n画面：女子背对镜头立于木栈道扶栏前，双手在背后握着花束，眺望碧蓝湖水，对岸黄绿相间秋林与层叠山脉，栈道边缘有残雪，顶部光秃细枝入镜，阳光照射在人物身上\n\n镜头 4 ｜ 8.5–10.6s（2.1s）\n@视频1  对应画面， @图片1  为人物， @图片5  为这一段场景\n景别/机位：近景，略微俯拍，固定机位\n画面：女子发间换为蓝白花朵发饰，双手将白紫粉混色花束捧至身前，低头凑近凝视，领口珠串与袖口刺绣清晰，背景虚化蓝湖与岸边白雪，大光圈浅景深。\n\n镜头 5 ｜ 10.6–12.0s（1.4s）\n@视频1  对应画面， @图片1  为人物， @图片6  为这一段场景\n景别/机位：脸部大特写，正面平视，固定机位\n画面：女子黑发分路清晰、几缕碎发垂脸侧，蓝橙珠串在领口两侧对称，抬眼正视镜头、眼神平静，背景完全虚化为蓝色亮斑，侧逆光打在人物身上。\n\n镜头 6 ｜ 12.0–15.0s（3.0s）\n@视频1  对应画面， @图片1  为人物， @图片7  为这一段场景\n景别/机位：大远景，平视，镜头缓慢向后拉远\n画面：阳光明媚的秋景，碧蓝湖水依旧平静倒映远处的捎带雪的山，两侧山脉林木被金黄的秋色树木覆盖，木栈道与前景枯草树枝有着金黄的树叶，女子背对立于栈道望向湖山，阳光照射在人物身上。\n\n约束： @图片1  中的发色/服装颜色/伞样式为固定值不可修改；禁止出现与 @图片1  不符的第二种人物形象。",
+          "height": 290,
+          "id": "g4-1-v-2ggRPfIHv0",
           "localMedia": [],
+          "model": "tensor:SEEDANCE_2_5_FLASH",
+          "name": "视频成片",
+          "prompt": "参考视频 @视频1  深度信息及镜头切换节奏，整体的音乐使用 @音频1  这一段音乐；\n\n @图片1  （人物三视图）为女孩人物形象，人物特征以 @图片1  为唯一标准，不可自行更改。\n\n分镜执行（动作/运镜/场景严格参照 @视频1  对应时间段，人物形象严格参照 @图片1  ）：\n\n镜头 1 ｜ 0.0–4.0s（4.0s）\n@视频1  对应画面， @图片1  为人物， @图片2  为这一段场景\n景别/机位：大远景，平视，镜头缓慢向前推进\n画面：开阔高山湖泊，碧蓝湖水倒映山林，右侧针叶林夹杂金黄秋树，远处雪山连绵，前景枯黄草地与木栈道，女子背对镜头立于扶栏旁，阳光照射在她的身上\n\n镜头 2 ｜ 4.0–6.2s（2.2s）\n@视频1  对应画面， @图片1  为人物， @图片3  为这一段场景\n景别/机位：中近景推至脸部特写，平视侧拍，固定机位\n画面：女子侧对镜头，发间别淡紫小花，珠串项链、毛绒披肩与刺绣长袍清晰，怀抱白紫花束，低头侧脸轻嗅花朵，背景蓝绿湖水与金黄林木虚化，逆光照射在人物身上，背景虚化，大光圈浅景深。\n\n镜头 3 ｜ 6.2–8.5s（2.3s）\n@视频1  对应画面， @图片1  为人物， @图片4  为这一段场景\n景别/机位：中全景，平视，固定机位\n画面：女子背对镜头立于木栈道扶栏前，双手在背后握着花束，眺望碧蓝湖水，对岸黄绿相间秋林与层叠山脉，栈道边缘有残雪，顶部光秃细枝入镜，阳光照射在人物身上\n\n镜头 4 ｜ 8.5–10.6s（2.1s）\n@视频1  对应画面， @图片1  为人物， @图片5  为这一段场景\n景别/机位：近景，略微俯拍，固定机位\n画面：女子发间换为蓝白花朵发饰，双手将白紫粉混色花束捧至身前，低头凑近凝视，领口珠串与袖口刺绣清晰，背景虚化蓝湖与岸边白雪，大光圈浅景深。\n\n镜头 5 ｜ 10.6–12.0s（1.4s）\n@视频1  对应画面， @图片1  为人物， @图片6  为这一段场景\n景别/机位：脸部大特写，正面平视，固定机位\n画面：女子黑发分路清晰、几缕碎发垂脸侧，蓝橙珠串在领口两侧对称，抬眼正视镜头、眼神平静，背景完全虚化为蓝色亮斑，侧逆光打在人物身上。\n\n镜头 6 ｜ 12.0–15.0s（3.0s）\n@视频1  对应画面， @图片1  为人物， @图片7  为这一段场景\n景别/机位：大远景，平视，镜头缓慢向后拉远\n画面：阳光明媚的秋景，碧蓝湖水依旧平静倒映远处的捎带雪的山，两侧山脉林木被金黄的秋色树木覆盖，木栈道与前景枯草树枝有着金黄的树叶，女子背对立于栈道望向湖山，阳光照射在人物身上。\n\n约束： @图片1  中的发色/服装颜色/伞样式为固定值不可修改；禁止出现与 @图片1  不符的第二种人物形象。",
+          "quality": "standard",
           "refs": [
             {
               "from": "g4-2-i-UdJm4qqGlm",
@@ -276,9 +278,17 @@
               "label": "背景音乐"
             }
           ],
+          "resolution": "720p",
           "results": [],
+          "selected": false,
           "status": "idle",
-          "selected": false
+          "stylePreset": "古风奇幻",
+          "type": "video",
+          "videoMode": "omni",
+          "width": 210,
+          "x": 800,
+          "y": 160,
+          "error": ""
         }
       ],
       "seq": 11,
@@ -288,5 +298,6 @@
         "z": 0.65
       }
     }
-  }
+  },
+  "stage": "online"
 }

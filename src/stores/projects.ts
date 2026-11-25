@@ -161,6 +161,11 @@ export const useProjectsStore = defineStore('projects', () => {
     await refreshList();
   }
 
+  async function updateProjectCover(id: string, cover: string) {
+    await apiClient.updateProject(id, { cover });
+    await refreshList();
+  }
+
   async function moveProjectStage(id: string, stage: ProjectStage) {
     const res = await apiClient.setProjectStage(id, stage);
     if (activeProjectId.value === id) {
@@ -222,6 +227,7 @@ export const useProjectsStore = defineStore('projects', () => {
     importProjectZip,
     saveActive,
     renameProject,
+    updateProjectCover,
     moveProjectStage,
     publishProject,
     unpublishProject,
