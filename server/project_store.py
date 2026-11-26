@@ -15,6 +15,9 @@ DEFAULT_PROJECT_NAME = "未命名画布"
 MAX_PROJECT_NAME_LENGTH = 80
 DEFAULT_MAX_SNAPSHOT_BYTES = 10 * 1024 * 1024
 PROJECT_ID_PATTERN = re.compile(r"^canvas-[0-9a-f]{32}$")
+APP_ID_PATTERN = re.compile(r"^[a-zA-Z0-9][a-zA-Z0-9_-]{1,63}$")
+SLOT_KEY_PATTERN = re.compile(r"^[a-zA-Z0-9][a-zA-Z0-9_-]{0,47}$")
+VALID_SLOT_KINDS = ("image", "video", "audio", "text")
 STAGE_ONLINE = "online"
 STAGE_TEST = "test"
 VALID_STAGES = (STAGE_ONLINE, STAGE_TEST)
@@ -62,6 +65,204 @@ def _default_snapshot() -> dict[str, Any]:
             "seq": 1,
             "viewport": {"x": 0, "y": 0, "z": 1},
         },
+    }
+
+
+def _cards_from_snapshot(snapshot: dict[str, Any] | None) -> list[dict[str, Any]]:
+    if not isinstance(snapshot, dict):
+        return []
+    canvas = snapshot.get("canvas")
+    if isinstance(canvas, dict) and isinstance(canvas.get("cards"), list):
+        return [c for c in canvas["cards"] if isinstance(c, dict)]
+    if isinstance(snapshot.get("cards"), list):
+        return [c for c in snapshot["cards"] if isinstance(c, dict)]
+    return []
+
+
+def _card_primary_kind(card: dict[str, Any]) -> str:
+    ctype = str(card.get("type") or "")
+    if ctype == "source":
+        mk = str(card.get("mediaKind") or "").lower()
+        if mk in VALID_SLOT_KINDS:
+            return mk
+        results = card.get("results") or []
+        if isinstance(results, list) and results and isinstance(results[0], dict):
+            rk = str(results[0].get("kind") or "").lower()
+            if rk in VALID_SLOT_KINDS:
+                return rk
+        return "image"
+    if ctype in ("video", "transition", "videoEdit"):
+        return "video"
+    if ctype in ("image",):
+        return "image"
+    if ctype in ("audio", "ttsIndex"):
+        return "audio"
+    if ctype in ("prompt", "storyboard", "shotExtract"):
+        return "text"
+    if ctype in ("save", "gallery"):
+        refs = card.get("refs") or []
+        if isinstance(refs, list) and refs and isinstance(refs[0], dict):
+            rk = str(refs[0].get("kind") or "").lower()
+            if rk in VALID_SLOT_KINDS:
+                return rk
+    return "video"
+
+
+def default_app_id_for_project(project_id: str) -> str:
+    suffix = project_id.removeprefix("canvas-")[:8]
+    return f"app-{suffix or 'online'}"
+
+
+def infer_default_app_config(record: dict[str, Any]) -> dict[str, Any]:
+    """Infer a ready-to-use app_config (loadimage -> save_video) from a canvas snapshot."""
+    project_id = str(record.get("id") or "")
+    cards = _cards_from_snapshot(record.get("snapshot"))
+
+    # Find which cards are referenced by downstream cards (to identify sink outputs)
+    referenced_ids: set[str] = set()
+    for c in cards:
+        for r in c.get("refs") or []:
+            if isinstance(r, dict) and r.get("from"):
+                referenced_ids.add(str(r["from"]))
+
+    # 1. Pick best default input node (prefer image source node matching common subject/face keywords)
+    image_sources = [c for c in cards if c.get("type") == "source" and _card_primary_kind(c) == "image"]
+    chosen_in: dict[str, Any] | None = None
+    priority_keywords = ("人脸", "人物", "主体", "原图", "输入", "load", "image", "face", "subject")
+    for kw in priority_keywords:
+        for c in image_sources:
+            if kw in str(c.get("name") or "").lower():
+                chosen_in = c
+                break
+        if chosen_in is not None:
+            break
+    if chosen_in is None and image_sources:
+        chosen_in = image_sources[0]
+
+    inputs: list[dict[str, Any]] = []
+    if chosen_in is not None:
+        inputs.append(
+            {
+                "key": "loadimage",
+                "label": str(chosen_in.get("name") or "输入图片"),
+                "node_id": str(chosen_in.get("id") or ""),
+                "kind": "image",
+                "required": True,
+            }
+        )
+
+    # 2. Pick best default output node (prefer sink video/videoEdit/save node, then any video, then image)
+    chosen_out: dict[str, Any] | None = None
+    out_candidates = [c for c in cards if c.get("type") in ("save", "videoEdit", "video", "transition")]
+    sink_video = [c for c in out_candidates if str(c.get("id") or "") not in referenced_ids]
+    if sink_video:
+        chosen_out = sink_video[-1]
+    elif out_candidates:
+        chosen_out = out_candidates[-1]
+    else:
+        img_candidates = [c for c in cards if c.get("type") == "image"]
+        if img_candidates:
+            chosen_out = img_candidates[-1]
+
+    outputs: list[dict[str, Any]] = []
+    if chosen_out is not None:
+        out_kind = _card_primary_kind(chosen_out)
+        outputs.append(
+            {
+                "key": "save_video" if out_kind == "video" else f"save_{out_kind}",
+                "label": str(chosen_out.get("name") or ("输出视频" if out_kind == "video" else "输出产物")),
+                "node_id": str(chosen_out.get("id") or ""),
+                "kind": out_kind,
+            }
+        )
+
+    return {
+        "enabled": True,
+        "app_id": default_app_id_for_project(project_id),
+        "description": "",
+        "inputs": inputs,
+        "outputs": outputs,
+    }
+
+
+def normalize_app_config(raw: Any, record: dict[str, Any], *, strict: bool = False) -> dict[str, Any]:
+    """Validate and normalize app_config against the project's cards."""
+    inferred = infer_default_app_config(record)
+    if not isinstance(raw, dict):
+        return inferred
+
+    cards = _cards_from_snapshot(record.get("snapshot"))
+    card_map = {str(c.get("id") or ""): c for c in cards if c.get("id")}
+
+    raw_app_id = str(raw.get("app_id") or "").strip()
+    if not raw_app_id:
+        app_id = inferred["app_id"]
+    else:
+        if not APP_ID_PATTERN.match(raw_app_id):
+            if strict:
+                raise ValueError("AppID 仅支持字母、数字、下划线和短横线，长度 2-64 位且需以字母或数字开头")
+            app_id = inferred["app_id"]
+        else:
+            app_id = raw_app_id
+
+    enabled = bool(raw.get("enabled", True))
+    description = str(raw.get("description") or "").strip()[:300]
+
+    def _clean_slots(items: Any, *, is_input: bool) -> list[dict[str, Any]]:
+        if not isinstance(items, list):
+            return inferred["inputs"] if is_input else inferred["outputs"]
+        out: list[dict[str, Any]] = []
+        seen_keys: set[str] = set()
+        for idx, item in enumerate(items):
+            if not isinstance(item, dict):
+                continue
+            node_id = str(item.get("node_id") or "").strip()
+            if not node_id:
+                continue
+            if strict and card_map and node_id not in card_map:
+                raise ValueError(f"映射节点不存在：{node_id}")
+            raw_key = str(item.get("key") or "").strip()
+            if not raw_key:
+                raw_key = f"{'loadimage' if is_input else 'save_video'}_{idx + 1}" if idx > 0 else (
+                    "loadimage" if is_input else "save_video"
+                )
+            if not SLOT_KEY_PATTERN.match(raw_key):
+                if strict:
+                    raise ValueError(f"映射参数名无效：{raw_key}（仅支持字母、数字、下划线和短横线）")
+                continue
+            key_lower = raw_key.lower()
+            if key_lower in seen_keys:
+                if strict:
+                    raise ValueError(f"映射参数名重复：{raw_key}")
+                continue
+            seen_keys.add(key_lower)
+            card = card_map.get(node_id)
+            kind = str(item.get("kind") or "").strip().lower()
+            if kind not in VALID_SLOT_KINDS:
+                kind = _card_primary_kind(card) if card else ("image" if is_input else "video")
+            label = str(item.get("label") or (card.get("name") if card else "") or raw_key).strip()[:60]
+            slot: dict[str, Any] = {
+                "key": raw_key,
+                "label": label,
+                "node_id": node_id,
+                "kind": kind,
+            }
+            if is_input:
+                slot["required"] = bool(item.get("required", True))
+            out.append(slot)
+        return out
+
+    inputs = _clean_slots(raw.get("inputs"), is_input=True)
+    outputs = _clean_slots(raw.get("outputs"), is_input=False)
+    if strict and not outputs:
+        raise ValueError("请至少映射一个输出节点（例如 save_video）")
+
+    return {
+        "enabled": enabled,
+        "app_id": app_id,
+        "description": description,
+        "inputs": inputs,
+        "outputs": outputs,
     }
 
 
@@ -158,12 +359,14 @@ class ProjectStore:
             raise ProjectCorruptError(f"项目结构无效: {path.name}")
         if stage in VALID_STAGES:
             data["stage"] = stage
+        if data.get("stage") == STAGE_ONLINE:
+            data["app_config"] = normalize_app_config(data.get("app_config"), data, strict=False)
         return data
 
     def _summary(self, record: dict[str, Any], *, stage: str) -> dict[str, Any]:
         snapshot = record.get("snapshot") or {}
         cover = str(record.get("cover") or "").strip()
-        return {
+        summary: dict[str, Any] = {
             "schema_version": record.get("schema_version", SCHEMA_VERSION),
             "id": record["id"],
             "name": record.get("name") or DEFAULT_PROJECT_NAME,
@@ -174,6 +377,9 @@ class ProjectStore:
             "thumbnail": cover or _extract_thumbnail(snapshot),
             "has_custom_cover": bool(cover),
         }
+        if stage == STAGE_ONLINE:
+            summary["app_config"] = normalize_app_config(record.get("app_config"), record, strict=False)
+        return summary
 
     def list(self, *, stage: str | None = None) -> list[dict[str, Any]]:
         with self._lock:
