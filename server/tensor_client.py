@@ -1,10 +1,10 @@
 from __future__ import annotations
 
+import copy
+import hashlib
 import json
-import mimetypes
 import os
 import re
-import subprocess
 import tempfile
 import threading
 import time
@@ -22,40 +22,19 @@ from .asset_store import (
     kind_for_suffix,
     mime_for_suffix,
     normalize_media_duration_file,
+    probe_media_duration,
 )
 
 DEFAULT_TENSOR_BASE = "https://openapi.tensorart.me/canvas-openapi"
 TUSI_TENSOR_BASE = "https://openapi.tusiart.cn/canvas-openapi"
 
-TENSOR_IMAGE_MODELS: dict[str, str] = {
-    "tensor:NANO_BANANA_2": "NANO_BANANA_2",
-    "tensor:NANO_BANANA_PRO": "NANO_BANANA_PRO",
-    "tensor:CHATGPT_IMAGE_2": "CHATGPT_IMAGE_2",
-    "tensor:MIDJOURNEY_V7": "MIDJOURNEY_V7",
-    "tensor:MIDJOURNEY_NIJI_V7": "MIDJOURNEY_NIJI_V7",
-    "tensor:WAN_2_7_IMAGE": "WAN_2_7_IMAGE",
-    "tensor:WAN_2_7_IMAGE_PRO": "WAN_2_7_IMAGE_PRO",
-}
+DATA_ROOT = Path(__file__).resolve().parent.parent / "data"
+STATE_PATH = DATA_ROOT / "tensor_state.json"
+TEMPLATES_PATH = Path(__file__).with_name("tensor_templates.json")
 
-TENSOR_VIDEO_MODELS: dict[str, str] = {
-    "tensor:SEEDANCE_2_5": "DEFAULT",
-    "tensor:SEEDANCE_2_5_FLASH": "DEFAULT",
-    "tensor:SEEDANCE_2_0": "SEEDANCE_2_0",
-    "tensor:SEEDANCE_2_0_FAST": "SEEDANCE_2_0_FAST",
-    "tensor:KLING_V3": "KLING_V3",
-    "tensor:KLING_V3_OMNI": "KLING_V3_OMNI",
-    "tensor:VIDU_Q3_PRO": "VIDU_Q3_PRO",
-    "tensor:PIXVERSE_V6": "PIXVERSE_V6",
-    "tensor:HAPPYHORSE_1": "HAPPYHORSE_1",
-    "tensor:WAN_2_7_T2V": "WAN_2_7_T2V",
-    "tensor:WAN_2_7_I2V": "WAN_2_7_I2V",
-    "tensor:WAN_2_7_R2V": "WAN_2_7_R2V",
-}
-
-TENSOR_PROMPT_MODEL_HINTS: dict[str, str] = {
-    "tensor:SEEDANCE_2_5": "Seedance 2.5",
-    "tensor:SEEDANCE_2_5_FLASH": "Seedance 2.5 Flash",
-}
+CANVAS_NAME = "RH Canvas CLI"
+CANVAS_NODE_SOFT_LIMIT = 240  # 官方单画布上限 300 节点，留余量
+UPLOAD_CACHE_TTL = 6 * 3600
 
 EXT_TO_FILE_TYPE: dict[str, str] = {
     ".jpg": "JPG",
@@ -74,6 +53,15 @@ EXT_TO_FILE_TYPE: dict[str, str] = {
     ".flac": "FLAC",
 }
 
+TAG_TO_EN = {"图片": "image", "视频": "video", "音频": "audio"}
+
+_state_lock = threading.RLock()
+_canvas_lock = threading.Lock()
+_canvas_node_count: dict[str, int] = {}
+_upload_cache: dict[tuple[str, str], tuple[dict[str, Any], float]] = {}
+
+
+# ---------------------------------------------------------------- config helpers
 
 def resolve_tensor_key(config: dict[str, Any]) -> str:
     return str(config.get("tensor_api_key") or os.environ.get("TENSOR_CANVAS_API_KEY") or "").strip()
@@ -88,17 +76,19 @@ def is_tensor_model(model: str) -> bool:
     return str(model or "").strip().lower().startswith("tensor:")
 
 
-def resolve_pinned_model(model: str, kind: str = "image", has_refs: bool = False) -> str:
-    raw = str(model or "").strip()
-    if raw in TENSOR_IMAGE_MODELS:
-        return TENSOR_IMAGE_MODELS[raw]
-    if raw in TENSOR_VIDEO_MODELS:
-        return TENSOR_VIDEO_MODELS[raw]
-    if raw.lower().startswith("tensor:"):
-        return raw.split(":", 1)[1].strip().upper()
+def _norm_key(name: str) -> str:
+    return re.sub(r"[^A-Z0-9]+", "_", str(name or "").upper()).strip("_")
 
+
+def resolve_model_key(model: str, kind: str = "image") -> str:
+    """Map UI model id -> Tensor baseModel key, e.g. tensor:SEEDANCE_2_0_FAST -> SEEDANCE_2_0_FAST."""
+    raw = str(model or "").strip()
+    if raw.lower().startswith("tensor:"):
+        return _norm_key(raw.split(":", 1)[1])
     low = raw.lower()
     if kind == "video":
+        if "seedance" in low and ("2.5" in low or "2_5" in low):
+            return "SEEDANCE_2_5_FLASH" if "flash" in low else "SEEDANCE_2_5"
         if "seedance" in low and "fast" in low:
             return "SEEDANCE_2_0_FAST"
         if "seedance" in low:
@@ -112,38 +102,102 @@ def resolve_pinned_model(model: str, kind: str = "image", has_refs: bool = False
         if "pixverse" in low:
             return "PIXVERSE_V6"
         if "wan" in low:
-            return "WAN_2_7_I2V" if has_refs else "WAN_2_7_T2V"
+            return "WAN_2_7_I2V"
         return "SEEDANCE_2_0_FAST"
     return "NANO_BANANA_2"
 
 
+# Backward-compatible alias
+resolve_pinned_model = resolve_model_key
+
+
+# ---------------------------------------------------------------- local state
+
+def _load_state() -> dict[str, Any]:
+    with _state_lock:
+        try:
+            if STATE_PATH.exists():
+                data = json.loads(STATE_PATH.read_text(encoding="utf-8"))
+                if isinstance(data, dict):
+                    return data
+        except Exception:
+            pass
+        return {}
+
+
+def _save_state(update: Callable[[dict[str, Any]], None]) -> None:
+    with _state_lock:
+        state = _load_state()
+        update(state)
+        STATE_PATH.parent.mkdir(parents=True, exist_ok=True)
+        STATE_PATH.write_text(json.dumps(state, ensure_ascii=False, indent=2), encoding="utf-8")
+
+
+def _load_templates() -> dict[str, Any]:
+    try:
+        builtin = json.loads(TEMPLATES_PATH.read_text(encoding="utf-8"))
+    except Exception:
+        builtin = {"base_request": {}, "models": {}}
+    learned = _load_state().get("learned_models") or {}
+    models = {**(builtin.get("models") or {}), **learned}
+    return {"base_request": builtin.get("base_request") or {}, "models": models}
+
+
+def _strip_request(req: dict[str, Any]) -> dict[str, Any]:
+    req = copy.deepcopy(req)
+    p = req.get("params") or {}
+    for k in ("prompt", "displayPrompt", "negativePrompt"):
+        if k in p:
+            p[k] = ""
+    for k in ("files", "images", "imageIds", "promptBlocks"):
+        if k in p:
+            p[k] = []
+    vp = p.get("videoParams")
+    if isinstance(vp, dict):
+        vp["refVideoDurations"] = []
+    req["credits"] = 0
+    return req
+
+
+# ---------------------------------------------------------------- client
+
 class TensorCanvasClient:
-    """Tensor / Forge Canvas OpenAPI v1 client (supports tensorart.me and tusiart.cn)."""
+    """Tensor / Forge Canvas OpenAPI v1 —— 直接运行画布节点（workflow/actions + workflow/nodes/run）。
+
+    不走 Agent 对话；所有生成复用同一个固定画布（按接入节点区分），不会每次新建画布。
+    """
 
     def __init__(self, api_key: str, base_url: str = DEFAULT_TENSOR_BASE) -> None:
         self.api_key = api_key.strip()
         self.base_url = base_url.rstrip("/")
 
-    def _headers(self, json_content: bool = True, sse: bool = False) -> dict[str, str]:
+    # ------------------------------------------------------------ http
+    def _headers(self, json_content: bool = True) -> dict[str, str]:
         if not self.api_key:
             raise ValueError("请先在设置中填写 Tensor (Forge) Access Key")
-        h = {
-            "Authorization": f"Bearer {self.api_key}",
-            "X-Request-Id": str(uuid4()),
-        }
+        h = {"Authorization": f"Bearer {self.api_key}", "X-Request-Id": str(uuid4())}
         if json_content:
             h["Content-Type"] = "application/json"
-        if sse:
-            h["Accept"] = "text/event-stream"
         return h
 
     def _post_json(self, path: str, body: dict[str, Any], timeout: int = 30) -> dict[str, Any]:
-        resp = requests.post(
-            f"{self.base_url}/v1{path}",
-            headers=self._headers(json_content=True),
-            json=body,
-            timeout=timeout,
-        )
+        last_exc: Exception | None = None
+        for attempt in range(3):
+            try:
+                resp = requests.post(
+                    f"{self.base_url}/v1{path}",
+                    headers=self._headers(json_content=True),
+                    json=body,
+                    timeout=timeout,
+                )
+                break
+            except requests.exceptions.SSLError as exc:
+                last_exc = exc
+                if attempt == 2:
+                    raise
+                time.sleep(0.6 * (attempt + 1))
+        else:
+            raise last_exc  # pragma: no cover
         try:
             payload = resp.json()
         except Exception as exc:
@@ -156,54 +210,140 @@ class TensorCanvasClient:
             raise RuntimeError(f"Tensor 业务失败：{msg}")
         return payload.get("data") or {}
 
+    # ------------------------------------------------------------ connection test
     def test_connection(self) -> dict[str, Any]:
         if not self.api_key:
             raise ValueError("请先填写 Tensor (Forge) Access Key")
         data = self._post_json("/canvas/list", {"size": 5}, timeout=15)
         canvas_count = len(data.get("canvasList") or [])
-        skills_count = 0
-        try:
-            resp = requests.get(
-                f"{self.base_url}/v1/agent/skills",
-                headers=self._headers(json_content=False),
-                timeout=15,
-            )
-            if resp.ok:
-                sp = resp.json()
-                if str(sp.get("code")) == "0":
-                    skills_count = len((sp.get("data") or {}).get("skills") or [])
-        except Exception:
-            pass
         site = "吐司国内" if "tusiart" in self.base_url else "Tensor 海外"
+        models = sorted(_load_templates()["models"].keys())
+        # 后台从已有画布学习更多模型参数，不阻塞测试
+        threading.Thread(target=self._safe_harvest, daemon=True).start()
         return {
             "success": True,
             "status_code": 200,
-            "message": f"Tensor ({site}) Access Key 验证通过（画布 {canvas_count} 个 · 可用 Skill {skills_count} 个）",
+            "message": f"Tensor ({site}) Access Key 验证通过（画布 {canvas_count} 个 · 直跑节点可用模型 {len(models)} 个）",
         }
 
-    def create_canvas(self, name: str = "RH Canvas Run") -> str:
-        data = self._post_json("/canvas/create", {"name": name[:80]})
-        canvas_id = str((data.get("canvas") or {}).get("id") or "").strip()
-        if not canvas_id:
-            raise RuntimeError("Tensor 创建画布未返回 canvasId")
-        return canvas_id
-
-    def create_session(self, canvas_id: str, title: str = "节点生成") -> str:
-        data = self._post_json("/agent/session/create", {"canvasId": canvas_id, "title": title[:80]})
-        session_id = str((data.get("session") or {}).get("sessionId") or "").strip()
-        if not session_id:
-            raise RuntimeError("Tensor 创建会话未返回 sessionId")
-        return session_id
-
     def cancel_chat(self, canvas_id: str, session_id: str) -> bool:
-        if not canvas_id or not session_id:
-            return False
-        try:
-            data = self._post_json("/agent/chat/cancel", {"canvasId": canvas_id, "sessionId": session_id}, timeout=10)
-            return bool(data.get("aborted"))
-        except Exception:
-            return False
+        """Kept for compatibility; direct node runs have no public remote-cancel endpoint."""
+        return False
 
+    # ------------------------------------------------------------ model template learning
+    def _safe_harvest(self) -> None:
+        try:
+            self.harvest_models()
+        except Exception:
+            pass
+
+    def harvest_models(self, max_canvases: int = 60) -> list[str]:
+        """Scan the user's canvases for GENERATE nodes and learn baseModel + request template per model."""
+        learned: dict[str, Any] = {}
+        cursor = ""
+        scanned = 0
+        while scanned < max_canvases:
+            body: dict[str, Any] = {"size": 50}
+            if cursor:
+                body["cursor"] = cursor
+            data = self._post_json("/canvas/list", body, timeout=20)
+            canvases = data.get("canvasList") or []
+            for c in canvases:
+                if scanned >= max_canvases:
+                    break
+                scanned += 1
+                try:
+                    g = self._post_json("/workflow/graph", {"canvasId": str(c.get("id"))}, timeout=20)
+                except Exception:
+                    continue
+                for n in (g.get("workflow") or {}).get("nodes") or []:
+                    if str(n.get("subType") or "").upper() != "GENERATE":
+                        continue
+                    req = (((n.get("data") or {}).get("generation") or {}).get("params") or {}).get("request")
+                    if not isinstance(req, dict):
+                        continue
+                    bm = (req.get("params") or {}).get("baseModel") or {}
+                    key = _norm_key(bm.get("baseModel") or "")
+                    if not key or not bm.get("modelId") or key in learned:
+                        continue
+                    learned[key] = {
+                        "kind": str(n.get("type") or "image").lower(),
+                        "baseModel": bm,
+                        "request": _strip_request(req),
+                    }
+            cursor = str(data.get("cursor") or "")
+            if not cursor or not canvases:
+                break
+        if learned:
+            _save_state(lambda s: s.setdefault("learned_models", {}).update(learned))
+        return sorted(learned.keys())
+
+    def _get_model_template(self, model_key: str, kind: str) -> tuple[dict[str, Any], dict[str, Any]]:
+        tpl = _load_templates()
+        entry = tpl["models"].get(model_key)
+        if not entry:
+            self.harvest_models()
+            tpl = _load_templates()
+            entry = tpl["models"].get(model_key)
+        if not entry:
+            known = ", ".join(sorted(k for k, v in tpl["models"].items() if v.get("kind") == kind))
+            raise RuntimeError(
+                f"Tensor 模型 {model_key} 还没有节点参数模板。请先在 Tensor 网页画布上用该模型跑一次生成，"
+                f"再点「测试连通性」自动学习。当前可直跑：{known or '无'}"
+            )
+        base_req = entry.get("request") or tpl["base_request"].get(kind)
+        if not base_req:
+            raise RuntimeError(f"缺少 {kind} 节点基础参数模板")
+        return entry, copy.deepcopy(base_req)
+
+    # ------------------------------------------------------------ fixed canvas
+    def _canvas_state_key(self) -> str:
+        return self.base_url
+
+    def ensure_canvas(self) -> str:
+        """Return the persistent working canvas; create once, clean up when approaching node limit."""
+        with _canvas_lock:
+            skey = self._canvas_state_key()
+            canvas_id = str((_load_state().get("canvas") or {}).get(skey) or "").strip()
+            if canvas_id and canvas_id in _canvas_node_count:
+                count = _canvas_node_count[canvas_id]
+            elif canvas_id:
+                try:
+                    g = self._post_json("/workflow/graph", {"canvasId": canvas_id}, timeout=20)
+                    count = len((g.get("workflow") or {}).get("nodes") or [])
+                except Exception:
+                    canvas_id, count = "", 0
+            else:
+                count = 0
+            if not canvas_id:
+                data = self._post_json("/canvas/create", {"name": CANVAS_NAME})
+                canvas_id = str((data.get("canvas") or {}).get("id") or "").strip()
+                if not canvas_id:
+                    raise RuntimeError("Tensor 创建画布未返回 canvasId")
+                _save_state(lambda s: s.setdefault("canvas", {}).__setitem__(skey, canvas_id))
+                count = 0
+            if count >= CANVAS_NODE_SOFT_LIMIT:
+                self._clear_canvas(canvas_id)
+                count = 0
+            _canvas_node_count[canvas_id] = count
+            return canvas_id
+
+    def _clear_canvas(self, canvas_id: str) -> None:
+        g = self._post_json("/workflow/graph", {"canvasId": canvas_id}, timeout=30)
+        ids = [str(n.get("id")) for n in (g.get("workflow") or {}).get("nodes") or [] if n.get("id")]
+        for i in range(0, len(ids), 100):
+            self._post_json(
+                "/workflow/actions",
+                {"canvasId": canvas_id, "actions": [{"action": "delete", "nodeIds": ids[i : i + 100]}]},
+                timeout=60,
+            )
+
+    def _bump_count(self, canvas_id: str, n: int) -> int:
+        with _canvas_lock:
+            _canvas_node_count[canvas_id] = _canvas_node_count.get(canvas_id, 0) + n
+            return _canvas_node_count[canvas_id]
+
+    # ------------------------------------------------------------ media upload
     def _resolve_local_file(self, item: dict[str, Any]) -> Path | None:
         raw_path = str(item.get("path") or "").strip()
         if raw_path:
@@ -211,565 +351,279 @@ class TensorCanvasClient:
             if p.exists() and p.is_file():
                 return p
         url = str(item.get("url") or "").strip()
-        root = Path(__file__).resolve().parent.parent / "data"
         if url.startswith("/api/assets/input/"):
-            fname = unquote(url.removeprefix("/api/assets/input/"))
-            cand = root / "assets" / fname
+            cand = DATA_ROOT / "assets" / unquote(url.removeprefix("/api/assets/input/"))
             if cand.exists() and cand.is_file():
                 return cand
         if url.startswith("/api/outputs/"):
-            rel = unquote(url.removeprefix("/api/outputs/"))
-            cand = root / "outputs" / rel
+            cand = DATA_ROOT / "outputs" / unquote(url.removeprefix("/api/outputs/"))
             if cand.exists() and cand.is_file():
                 return cand
         return None
 
-    def upload_file(self, file_path: Path) -> dict[str, Any]:
+    @staticmethod
+    def _prepare_upload_bytes(file_path: Path) -> tuple[bytes, str, str]:
+        """Return (payload_bytes, file_type, mime); shrink oversized opaque images to avoid slow R2 PUT timeouts."""
         ext = file_path.suffix.lower()
         file_type = EXT_TO_FILE_TYPE.get(ext)
         if not file_type:
             raise ValueError(f"Tensor 不支持的文件类型：{ext or file_path.name}")
-        data = self._post_json("/media/upload/create", {"fileType": file_type}, timeout=20)
-        media_id = str(data.get("mediaId") or "").strip()
-        upload_url = str(data.get("uploadUrl") or "").strip()
-        display_url = str(data.get("displayUrl") or "").strip()
-        if not upload_url or not display_url:
-            raise RuntimeError("Tensor 上传地址申请失败")
-
-        mime = mime_for_suffix(file_path.suffix, kind_for_suffix(file_path.suffix))
-        with file_path.open("rb") as fh:
-            put_resp = requests.put(upload_url, headers={"Content-Type": mime}, data=fh, timeout=180)
-        if not put_resp.ok:
-            raise RuntimeError(f"上传素材到 Tensor 存储失败 (HTTP {put_resp.status_code})")
-        file_obj: dict[str, Any] = {
-            "url": display_url,
-            "mimeType": mime,
-            "type": "URL",
-        }
-        if media_id:
-            file_obj["assetId"] = media_id
-        return file_obj
-
-    def _consume_sse(
-        self,
-        url: str,
-        body: dict[str, Any],
-        artifacts: list[dict[str, Any]],
-        texts: list[str],
-        cancel_event: threading.Event | None = None,
-        canvas_id: str = "",
-        session_id: str = "",
-    ) -> dict[str, Any]:
-        """Consume a Canvas OpenAPI SSE stream. Returns status + pending tool_intent if any."""
-        pending_intent: dict[str, Any] | None = None
-        done_status = ""
-        error_msg = ""
-
-        with requests.post(
-            url,
-            headers=self._headers(json_content=True, sse=True),
-            json=body,
-            stream=True,
-            timeout=(20, 600),
-        ) as resp:
-            if not resp.ok:
-                try:
-                    err_payload = resp.json()
-                    msg = err_payload.get("message") or err_payload.get("msg") or resp.text[:300]
-                except Exception:
-                    msg = resp.text[:300]
-                raise RuntimeError(f"Tensor 流式请求失败 (HTTP {resp.status_code})：{msg}")
-
-            ctype = (resp.headers.get("Content-Type") or "").lower()
-            if "application/json" in ctype and "text/event-stream" not in ctype:
-                payload = resp.json()
-                if str(payload.get("code")) != "0":
-                    raise RuntimeError(f"Tensor 业务失败：{payload.get('message') or payload}")
-                return {"status": "SUCCESS", "pending_intent": None, "error": ""}
-
-            event_name = ""
-            data_lines: list[str] = []
-
-            def flush_event() -> bool:
-                nonlocal pending_intent, done_status, error_msg, event_name, data_lines
-                if not data_lines:
-                    event_name = ""
-                    return False
-                raw_data = "\n".join(data_lines).strip()
-                ev = event_name.strip()
-                event_name = ""
-                data_lines = []
-                if not raw_data:
-                    return False
-                try:
-                    obj = json.loads(raw_data)
-                except Exception:
-                    return False
-                etype = str(obj.get("event_type") or ev or "").upper()
-
-                if etype == "DELTA":
-                    delta = obj.get("delta") or {}
-                    c = delta.get("content")
-                    if isinstance(c, str) and c:
-                        texts.append(c)
-                elif etype == "ARTIFACT":
-                    art = obj.get("artifact")
-                    if isinstance(art, dict):
-                        inner = art.get("artifact") if isinstance(art.get("artifact"), dict) else art
-                        artifacts.append(inner)
-                elif etype == "TOOL_INTENT_PROPOSED":
-                    ti = obj.get("tool_intent") or {}
-                    tool_call_id = str(obj.get("tool_call_id") or ti.get("toolCallId") or ti.get("tool_call_id") or "").strip()
-                    billing = ti.get("estimatedBilling") or ti.get("estimated_billing") or {}
-                    charged = billing.get("chargedEnergy")
-                    if charged is None:
-                        charged = billing.get("charged_energy")
-                    sufficient = ti.get("sufficient")
-                    pending_intent = {
-                        "tool_call_id": tool_call_id,
-                        "charged_energy": charged,
-                        "sufficient": sufficient,
-                        "raw": ti,
-                    }
-                elif etype == "MESSAGE_DONE":
-                    md = obj.get("message_done") or {}
-                    done_status = str(md.get("status") or "").upper()
-                    return True
-                elif etype == "ERROR":
-                    err = obj.get("error") or {}
-                    error_msg = str(err.get("message") or err.get("errorMessage") or json.dumps(err, ensure_ascii=False))
-                    return True
-                return False
-
-            for raw_line in resp.iter_lines(decode_unicode=True):
-                if cancel_event and cancel_event.is_set():
-                    self.cancel_chat(canvas_id, session_id)
-                    raise RuntimeError("任务已取消")
-                if raw_line is None:
-                    continue
-                line = raw_line.rstrip("\r\n")
-                if not line:
-                    should_stop = flush_event()
-                    if should_stop:
-                        break
-                    continue
-                if line.startswith(":"):
-                    continue
-                if line.startswith("event:"):
-                    event_name = line[6:].strip()
-                elif line.startswith("data:"):
-                    data_lines.append(line[5:].lstrip())
-            flush_event()
-
-        return {
-            "status": done_status,
-            "pending_intent": pending_intent,
-            "error": error_msg,
-        }
-
-    def _extract_artifact_urls(self, artifacts: list[dict[str, Any]], expected_kind: str) -> list[str]:
-        preferred: list[str] = []
-        fallback: list[str] = []
-
-        def walk(node: Any) -> None:
-            if isinstance(node, dict):
-                # Prefer signed/download URLs (rawUrl on R2 without signature returns 403)
-                for key in ("downloadUrl", "download_url", "signedUrl", "signed_url"):
-                    val = node.get(key)
-                    if isinstance(val, str) and val.startswith(("http://", "https://")):
-                        preferred.append(val)
-                for key in ("displayUrl", "display_url", "mediaUrl", "media_url", "url"):
-                    val = node.get(key)
-                    if isinstance(val, str) and val.startswith(("http://", "https://")):
-                        fallback.append(val)
-                for k, v in node.items():
-                    if k in ("rawUrl", "raw_url"):
-                        continue
-                    if isinstance(v, (dict, list)):
-                        walk(v)
-            elif isinstance(node, list):
-                for item in node:
-                    walk(item)
-
-        for art in artifacts:
-            walk(art)
-
-        dedup = list(dict.fromkeys([*preferred, *fallback]))
-        if expected_kind == "video":
-            vid = [u for u in dedup if any(ext in u.lower().split("?")[0] for ext in (".mp4", ".mov", ".webm"))]
-            return vid or dedup
-        img = [u for u in dedup if any(ext in u.lower().split("?")[0] for ext in (".png", ".jpg", ".jpeg", ".webp"))]
-        return img or dedup
-
-    def _fetch_node_failure_detail(self, canvas_id: str, node_id: str, fallback_status: str) -> str:
-        """Query /workflow/runs/query to get the raw failCode / failMessage without prompt dumps."""
-        try:
-            runs_resp = self._post_json(
-                "/workflow/runs/query",
-                {"canvasId": canvas_id, "nodeIds": [node_id]},
-                timeout=15,
-            )
-            for item in runs_resp.get("runs") or []:
-                sub_runs = item.get("runs") or []
-                for sr in sub_runs:
-                    code = str(sr.get("failCode") or "").strip()
-                    msg = str(sr.get("failMessage") or "").strip()
-                    if msg or code:
-                        return f"{code}: {msg}".strip(": ") if code and msg else (msg or code)
-                reviews = item.get("reviewInfos") or []
-                if reviews:
-                    return json.dumps(reviews, ensure_ascii=False)
-        except Exception:
-            pass
-        return fallback_status
-
-    def _poll_workflow_output(
-        self,
-        canvas_id: str,
-        expected_kind: str,
-        cancel_event: threading.Event | None = None,
-        timeout_sec: int = 300,
-    ) -> list[str]:
-        """Poll /workflow/graph until generated node finishes and yields signed media URLs."""
-        target_type = expected_kind.upper()
-        deadline = time.monotonic() + timeout_sec
-        saw_node = False
-
-        while time.monotonic() < deadline:
-            if cancel_event and cancel_event.is_set():
-                raise RuntimeError("任务已取消")
+        raw = file_path.read_bytes()
+        kind = kind_for_suffix(ext)
+        mime = mime_for_suffix(ext, kind)
+        if kind == "image" and len(raw) > 800 * 1024 and ext != ".gif":
             try:
-                graph = self._post_json("/workflow/graph", {"canvasId": canvas_id}, timeout=20)
+                import io
+
+                with Image.open(io.BytesIO(raw)) as im:
+                    has_alpha = im.mode in ("RGBA", "LA", "PA") and im.getchannel("A").getextrema()[0] < 255
+                    if max(im.size) > 2048:
+                        im.thumbnail((2048, 2048), Image.Resampling.LANCZOS)
+                    buf = io.BytesIO()
+                    if has_alpha:
+                        im.save(buf, format="PNG", optimize=True)
+                        cand, cand_type, cand_mime = buf.getvalue(), "PNG", "image/png"
+                    else:
+                        im.convert("RGB").save(buf, format="JPEG", quality=90, optimize=True)
+                        cand, cand_type, cand_mime = buf.getvalue(), "JPG", "image/jpeg"
+                    if len(cand) < len(raw):
+                        return cand, cand_type, cand_mime
             except Exception:
-                time.sleep(2.5)
-                continue
+                pass
+        return raw, file_type, mime
 
-            nodes = (graph.get("workflow") or {}).get("nodes") or []
-            # Only track actual GENERATE nodes (exclude UPLOAD reference nodes which stay IDLE)
-            gen_nodes = [
-                n for n in nodes
-                if str(n.get("subType") or "").upper() == "GENERATE"
-                and (not target_type or str(n.get("type") or "").upper() == target_type)
-            ]
-            if not gen_nodes:
-                gen_nodes = [n for n in nodes if str(n.get("subType") or "").upper() == "GENERATE"]
-            if not gen_nodes:
-                if saw_node:
-                    break
-                if time.monotonic() > deadline - timeout_sec + 12:
-                    break
-                time.sleep(2.0)
-                continue
+    def upload_file(self, file_path: Path) -> dict[str, Any]:
+        md5 = hashlib.md5(file_path.read_bytes()).hexdigest()
+        cache_key = (self.base_url, md5)
+        cached = _upload_cache.get(cache_key)
+        if cached and time.time() - cached[1] < UPLOAD_CACHE_TTL:
+            return dict(cached[0])
 
-            saw_node = True
-            urls: list[str] = []
-            running_count = 0
-            failed_msgs: list[str] = []
+        payload_bytes, file_type, mime = self._prepare_upload_bytes(file_path)
+        # Do not pass hex md5 to /media/upload/create; R2 presigned URL signs content-md5 and rejects hex-signed PUTs with 403.
+        last_exc: Exception | None = None
+        for attempt in range(2):
+            data = self._post_json("/media/upload/create", {"fileType": file_type}, timeout=20)
+            upload_url = str(data.get("uploadUrl") or "").strip()
+            display_url = str(data.get("displayUrl") or "").strip()
+            if not upload_url or not display_url:
+                raise RuntimeError("Tensor 上传地址申请失败")
+            try:
+                put_resp = requests.put(upload_url, headers={"Content-Type": mime}, data=payload_bytes, timeout=180)
+                if not put_resp.ok:
+                    raise RuntimeError(f"上传素材到 Tensor 存储失败 (HTTP {put_resp.status_code})")
+                file_obj = {"url": display_url, "mimeType": mime, "assetId": str(data.get("mediaId") or "")}
+                _upload_cache[cache_key] = (file_obj, time.time())
+                return dict(file_obj)
+            except requests.exceptions.RequestException as exc:
+                last_exc = exc
+                if attempt == 1:
+                    raise
+                time.sleep(0.8)
+        raise last_exc  # pragma: no cover
 
-            for n in gen_nodes:
-                st = str(n.get("status") or "").upper()
-                if st == "SUCCESS":
-                    gen_data = (n.get("data") or {}).get("generation") or {}
-                    cur_out = gen_data.get("currentOutput")
-                    if isinstance(cur_out, dict):
-                        urls.extend(self._extract_artifact_urls([cur_out], expected_kind))
-                    urls.extend(self._extract_artifact_urls([n.get("data") or {}], expected_kind))
-                elif st in ("RUNNING", "READY", "IDLE", "PENDING", "QUEUED"):
-                    running_count += 1
-                elif st in ("FAILED", "INVALID", "ERROR"):
-                    detail = self._fetch_node_failure_detail(canvas_id, str(n.get("id") or ""), st)
-                    failed_msgs.append(detail)
-
-            urls = list(dict.fromkeys(urls))
-            if urls:
-                return urls
-            if running_count == 0:
-                if failed_msgs:
-                    raise RuntimeError(" | ".join(failed_msgs))
-                break
-
-            time.sleep(2.5)
-
-        return []
-
-    def _upload_with_duration_guard(
-        self,
-        file_path: Path,
-        kind: str,
-        min_sec: float = MEDIA_MIN_DURATION_SEC,
-        max_sec: float = MEDIA_MAX_DURATION_SEC,
-    ) -> dict[str, Any]:
-        """Upload media; normalize video/audio duration into [min_sec, max_sec] (Seedance 2-15s limit)."""
+    def _upload_media(self, file_path: Path, kind: str) -> tuple[dict[str, Any], float | None]:
+        """Upload; video/audio duration is normalized into Seedance's 2–15s window first."""
         if kind not in ("video", "audio"):
-            return self.upload_file(file_path)
+            return self.upload_file(file_path), None
         with tempfile.TemporaryDirectory(prefix="tensor-dur-") as tmpdir:
-            norm_path, _adjusted, _dur = normalize_media_duration_file(
-                file_path,
-                kind,
-                min_sec=min_sec,
-                max_sec=max_sec,
-                output_dir=Path(tmpdir),
+            norm_path, _adjusted, dur = normalize_media_duration_file(
+                file_path, kind, min_sec=MEDIA_MIN_DURATION_SEC, max_sec=MEDIA_MAX_DURATION_SEC, output_dir=Path(tmpdir)
             )
-            return self.upload_file(norm_path)
+            if _adjusted:
+                dur = probe_media_duration(norm_path) or dur
+            return self.upload_file(norm_path), dur
 
-    def _stage_media_nodes(
+    # ------------------------------------------------------------ core: direct node run
+    @staticmethod
+    def _convert_prompt_tags(prompt: str) -> str:
+        return re.sub(r"@(图片|视频|音频)(\d+)", lambda m: f"@{TAG_TO_EN[m.group(1)]}{m.group(2)}", prompt)
+
+    def _run_generate_node(
         self,
-        canvas_id: str,
-        items: list[dict[str, Any]],
-    ) -> list[dict[str, Any]]:
-        """Upload local media files and add them as persistent canvas nodes via /workflow/actions."""
-        staged: list[dict[str, Any]] = []
-        nodes_in: list[dict[str, Any]] = []
-        kind_to_type = {
-            "image": ("IMAGE", "image", "PROMPT_REFERENCE_TYPE_IMAGE"),
-            "video": ("VIDEO", "video", "PROMPT_REFERENCE_TYPE_VIDEO"),
-            "audio": ("AUDIO", "audio", "PROMPT_REFERENCE_TYPE_AUDIO"),
-        }
-        for idx, item in enumerate(items):
-            kind = str(item.get("kind") or "image").lower()
-            if kind not in kind_to_type:
+        *,
+        kind: str,
+        model_key: str,
+        prompt: str,
+        ref_items: list[dict[str, Any]],
+        configure: Callable[[dict[str, Any], dict[str, Any]], None],
+        cancel_event: threading.Event | None,
+        on_session_created: Callable[[str, str], None] | None,
+        timeout_sec: int,
+    ) -> dict[str, Any]:
+        entry, req = self._get_model_template(model_key, kind)
+        canvas_id = self.ensure_canvas()
+        if on_session_created:
+            on_session_created(canvas_id, "")
+
+        base_count = _canvas_node_count.get(canvas_id, 0)
+        row_y = 80 + (base_count % 40) * 60
+
+        # 1) upload refs + build UPLOAD nodes (per-kind order => @image1/@video1/@audio1)
+        ref_nodes: list[dict[str, Any]] = []
+        video_durations: list[float] = []
+        for idx, item in enumerate(ref_items):
+            rkind = str(item.get("kind") or "image").lower()
+            if rkind not in ("image", "video", "audio"):
                 continue
             local_p = self._resolve_local_file(item)
             if local_p is None:
                 continue
-            ntype, branch, ref_type = kind_to_type[kind]
-            up = self._upload_with_duration_guard(local_p, kind)
-            node_id = f"ref-{kind}-{idx + 1}"
-            tag = str(item.get("tag") or f"@{kind}{idx + 1}").strip()
-            title = str(item.get("name") or item.get("label") or tag or local_p.stem)[:60]
-            nodes_in.append(
+            up, dur = self._upload_media(local_p, rkind)
+            if rkind == "video" and dur:
+                video_durations.append(round(float(dur), 1))
+            title = str(item.get("tag") or item.get("name") or local_p.stem)[:60]
+            ref_nodes.append(
                 {
-                    "id": node_id,
-                    "type": ntype,
+                    "id": f"ref-{rkind}-{uuid4().hex[:10]}",
+                    "type": rkind.upper(),
                     "subType": "UPLOAD",
-                    "title": f"{tag} {title}".strip(),
-                    "position": {"x": 80 + (idx % 4) * 220, "y": 80 + (idx // 4) * 220},
-                    "data": {branch: {"url": up["url"]}},
-                }
-            )
-            staged.append(
-                {
-                    "node_id": node_id,
-                    "tag": tag,
-                    "kind": kind,
-                    "ref_type": ref_type,
-                    "display_name": f"{tag}({title})" if title and title != tag else tag,
-                    "url": up["url"],
+                    "title": title,
+                    "position": {"x": 80 + idx * 40, "y": row_y + idx * 30},
+                    "data": {rkind: {"url": up["url"]}},
                 }
             )
 
-        if nodes_in:
-            res = self._post_json(
+        # 2) build GENERATE node params
+        p = req.setdefault("params", {})
+        p["baseModel"] = copy.deepcopy(entry["baseModel"])
+        clean_prompt = self._convert_prompt_tags(prompt)
+        p["prompt"] = clean_prompt
+        p["displayPrompt"] = clean_prompt
+        configure(req, {"has_refs": bool(ref_nodes), "video_durations": video_durations})
+
+        gen_id = f"{kind}-{uuid4()}"
+        gen_node = {
+            "id": gen_id,
+            "type": kind.upper(),
+            "subType": "GENERATE",
+            "title": f"{model_key} · {clean_prompt[:24]}",
+            "position": {"x": 700, "y": row_y},
+            "data": {"generation": {"params": {"request": req, "promptBlocks": [], "characterBindings": []}}},
+        }
+
+        # 3) add nodes (server may return created.nodes in any order, so match by id first)
+        wanted = [*ref_nodes, gen_node]
+        actions: list[dict[str, Any]] = [{"action": "add", "nodes": wanted}]
+        res = self._post_json("/workflow/actions", {"canvasId": canvas_id, "actions": actions}, timeout=60)
+        created = (res.get("created") or {}).get("nodes") or []
+        created_by_id = {str(c.get("id")): c for c in created if c.get("id")}
+        remaining = [c for c in created if str(c.get("id") or "") not in {w["id"] for w in wanted}]
+        id_map: dict[str, str] = {}
+        for w in wanted:
+            wid = w["id"]
+            if wid in created_by_id:
+                id_map[wid] = wid
+            else:
+                match_idx = next(
+                    (
+                        i
+                        for i, c in enumerate(remaining)
+                        if c.get("type") == w.get("type")
+                        and c.get("subType") == w.get("subType")
+                        and c.get("title") == w.get("title")
+                    ),
+                    None,
+                )
+                if match_idx is not None:
+                    id_map[wid] = str(remaining.pop(match_idx).get("id") or wid)
+                else:
+                    id_map[wid] = wid
+        gen_real = id_map.get(gen_id, gen_id)
+        if ref_nodes:
+            conns = [
+                {
+                    "id": f"edge-{uuid4()}",
+                    "source": id_map.get(r["id"], r["id"]),
+                    "sourceHandle": "output",
+                    "target": gen_real,
+                    "targetHandle": "input",
+                    "type": "default",
+                }
+                for r in ref_nodes
+            ]
+            self._post_json(
                 "/workflow/actions",
-                {"canvasId": canvas_id, "actions": [{"action": "add", "nodes": nodes_in}]},
+                {"canvasId": canvas_id, "actions": [{"action": "connect", "connections": conns}]},
                 timeout=60,
             )
-            created_nodes = (res.get("created") or {}).get("nodes") or []
-            if len(created_nodes) == len(staged):
-                for s, cn in zip(staged, created_nodes):
-                    if cn.get("id"):
-                        s["node_id"] = str(cn["id"])
-        return staged
+        self._bump_count(canvas_id, len(wanted))
+
+        # 4) run node
+        run = self._post_json(
+            "/workflow/nodes/run",
+            {"canvasId": canvas_id, "runTarget": {"type": "node", "nodeIds": [gen_real]}, "clientRequestId": str(uuid4())},
+            timeout=60,
+        )
+        run_id = str(run.get("runId") or "")
+        if on_session_created:
+            on_session_created(canvas_id, "")
+
+        # 5) poll only this node (fast at first, then back off)
+        urls, dims = self._poll_node(canvas_id, gen_real, kind, cancel_event, timeout_sec)
+        return {"canvas_id": canvas_id, "node_id": gen_real, "run_id": run_id, "urls": urls, "dims": dims}
+
+    def _poll_node(
+        self,
+        canvas_id: str,
+        node_id: str,
+        kind: str,
+        cancel_event: threading.Event | None,
+        timeout_sec: int,
+    ) -> tuple[list[str], str]:
+        start = time.monotonic()
+        while time.monotonic() - start < timeout_sec:
+            if cancel_event and cancel_event.is_set():
+                raise RuntimeError("任务已取消（Tensor 云端节点可能仍会继续运行）")
+            elapsed = time.monotonic() - start
+            try:
+                data = self._post_json("/workflow/nodes/query", {"canvasId": canvas_id, "nodeIds": [node_id]}, timeout=20)
+                node = (data.get("nodes") or [{}])[0]
+            except Exception:
+                node = {}
+            status = str(node.get("status") or "").upper()
+            gen = (node.get("data") or {}).get("generation") or {}
+            runs = gen.get("runs") or []
+            last = runs[-1] if runs else {}
+            if status == "SUCCESS" or str(last.get("status") or "").upper() == "SUCCESS":
+                outputs = last.get("outputs") or []
+                cur = gen.get("currentOutput")
+                if isinstance(cur, dict):
+                    outputs = [cur, *outputs]
+                urls: list[str] = []
+                dims = ""
+                for o in outputs:
+                    if not isinstance(o, dict):
+                        continue
+                    u = o.get("downloadUrl") or o.get("signedUrl") or o.get("url")
+                    if isinstance(u, str) and u.startswith("http"):
+                        urls.append(u)
+                        if not dims and o.get("width") and o.get("height"):
+                            dims = f"{o['width']}x{o['height']}"
+                urls = list(dict.fromkeys(urls))
+                if urls:
+                    return urls, dims
+            if status in ("FAILED", "INVALID", "ERROR") or str(last.get("status") or "").upper() in ("FAILED", "ERROR"):
+                code = str(last.get("failCode") or "").strip()
+                msg = str(last.get("failMessage") or "").strip()
+                reviews = last.get("inputReviews") or last.get("reviewInfos") or []
+                detail = f"{code}: {msg}".strip(": ") if (code or msg) else (json.dumps(reviews, ensure_ascii=False) if reviews else status)
+                raise RuntimeError(f"Tensor 节点生成失败：{detail}")
+            interval = 1.0 if elapsed < 30 else (2.0 if elapsed < 120 else 4.0)
+            time.sleep(interval)
+        raise RuntimeError(f"Tensor 节点生成超时（{timeout_sec}s），canvas={canvas_id} node={node_id}")
 
     @staticmethod
-    def _build_workflow_context(
-        message: str,
-        staged: list[dict[str, Any]],
-    ) -> dict[str, Any] | None:
-        """Convert @图片N / @视频N / @音频N tags into structured workflowContext promptBlocks."""
-        if not staged:
-            return None
-        by_tag = {s["tag"]: s for s in staged if s.get("tag")}
-        selected_ids = [s["node_id"] for s in staged]
-        blocks: list[dict[str, Any]] = []
+    def _download(url: str, target: Path, timeout: int) -> None:
+        target.parent.mkdir(parents=True, exist_ok=True)
+        with requests.get(url, stream=True, timeout=timeout) as r:
+            r.raise_for_status()
+            with target.open("wb") as fh:
+                for chunk in r.iter_content(chunk_size=1 << 20):
+                    if chunk:
+                        fh.write(chunk)
 
-        pattern = re.compile(r"@(?:图片|视频|音频)\d+")
-        pos = 0
-        mentioned_nodes: set[str] = set()
-        for m in pattern.finditer(message):
-            if m.start() > pos:
-                blocks.append({"type": "PROMPT_BLOCK_TYPE_TEXT", "text": message[pos : m.start()]})
-            tag = m.group(0)
-            target = by_tag.get(tag)
-            if target:
-                mentioned_nodes.add(target["node_id"])
-                blocks.append(
-                    {
-                        "type": "PROMPT_BLOCK_TYPE_MENTION",
-                        "referenceType": target["ref_type"],
-                        "displayName": target["display_name"],
-                        "nodeKey": target["node_id"],
-                    }
-                )
-            else:
-                blocks.append({"type": "PROMPT_BLOCK_TYPE_TEXT", "text": tag})
-            pos = m.end()
-        if pos < len(message):
-            blocks.append({"type": "PROMPT_BLOCK_TYPE_TEXT", "text": message[pos:]})
-
-        unmentioned = [s for s in staged if s["node_id"] not in mentioned_nodes]
-        if unmentioned:
-            blocks.append({"type": "PROMPT_BLOCK_TYPE_TEXT", "text": "\n参考素材节点："})
-            for s in unmentioned:
-                blocks.append(
-                    {
-                        "type": "PROMPT_BLOCK_TYPE_MENTION",
-                        "referenceType": s["ref_type"],
-                        "displayName": s["display_name"],
-                        "nodeKey": s["node_id"],
-                    }
-                )
-
-        return {
-            "selectedNodeIds": selected_ids,
-            "promptBlocks": blocks[:256],
-        }
-
-    def _run_agent_generation(
-        self,
-        *,
-        expected_kind: str,
-        pinned_model: str,
-        message: str,
-        ref_items: list[dict[str, Any]],
-        cancel_event: threading.Event | None = None,
-        on_session_created: Callable[[str, str], None] | None = None,
-    ) -> dict[str, Any]:
-        canvas_id = self.create_canvas(name=f"RH-{expected_kind}-{pinned_model}")
-        staged = self._stage_media_nodes(canvas_id, ref_items)
-        wf_ctx = self._build_workflow_context(message, staged)
-        session_id = self.create_session(canvas_id, title=pinned_model)
-        if on_session_created:
-            on_session_created(canvas_id, session_id)
-
-        artifacts: list[dict[str, Any]] = []
-        texts: list[str] = []
-
-        payload: dict[str, Any] = {
-            "canvasId": canvas_id,
-            "sessionId": session_id,
-            "message": message,
-            "pinnedModel": pinned_model,
-        }
-        if wf_ctx:
-            payload["workflowContext"] = wf_ctx
-
-        res: dict[str, Any] = {}
-        for attempt in range(2):
-            artifacts.clear()
-            texts.clear()
-            if attempt > 0:
-                session_id = self.create_session(canvas_id, title=f"{pinned_model}-retry")
-                payload["sessionId"] = session_id
-                if on_session_created:
-                    on_session_created(canvas_id, session_id)
-
-            res = self._consume_sse(
-                f"{self.base_url}/v1/agent/chat/stream",
-                payload,
-                artifacts,
-                texts,
-                cancel_event=cancel_event,
-                canvas_id=canvas_id,
-                session_id=session_id,
-            )
-
-            # Retry once if Tensor Agent aborted with transient BadRequestError before proposing any tool
-            reply_so_far = "".join(texts)
-            if (
-                attempt == 0
-                and not artifacts
-                and not res.get("pending_intent")
-                and not res.get("error")
-                and "BadRequestError" in reply_so_far
-            ):
-                time.sleep(2.0)
-                continue
-            break
-
-        # Auto-approve billing confirmation if proposed (up to 3 rounds)
-        rounds = 0
-        while res.get("pending_intent") and not res.get("error") and rounds < 3:
-            rounds += 1
-            intent = res["pending_intent"]
-            if intent.get("sufficient") is False:
-                raise RuntimeError("Tensor 账号 Energy 余额不足，请先在 forge.art 充值后再试")
-            tool_call_id = intent.get("tool_call_id") or ""
-            charged = intent.get("charged_energy")
-            if not tool_call_id:
-                break
-            confirm_body: dict[str, Any] = {"approved": True}
-            if charged is not None:
-                confirm_body["expectedEnergy"] = float(charged)
-            res = self._consume_sse(
-                f"{self.base_url}/v1/agent/tool_intent/{tool_call_id}/respond/stream",
-                confirm_body,
-                artifacts,
-                texts,
-                cancel_event=cancel_event,
-                canvas_id=canvas_id,
-                session_id=session_id,
-            )
-
-        if res.get("error"):
-            raise RuntimeError(f"Tensor 生成失败：{res['error']}")
-
-        urls = self._extract_artifact_urls(artifacts, expected_kind)
-
-        # Fallback: query /agent/messages or poll /workflow/graph (Agent submits async workflow nodes)
-        if not urls:
-            try:
-                msg_data = self._post_json(
-                    "/agent/messages",
-                    {"canvasId": canvas_id, "sessionId": session_id, "size": 20},
-                    timeout=20,
-                )
-                for m in msg_data.get("messages") or []:
-                    arts = m.get("artifacts") or []
-                    if arts:
-                        urls.extend(self._extract_artifact_urls(arts, expected_kind))
-            except Exception:
-                pass
-        if not urls:
-            poll_timeout = 1200 if expected_kind == "video" else 300
-            urls.extend(
-                self._poll_workflow_output(
-                    canvas_id=canvas_id,
-                    expected_kind=expected_kind,
-                    cancel_event=cancel_event,
-                    timeout_sec=poll_timeout,
-                )
-            )
-
-        urls = list(dict.fromkeys(urls))
-        if not urls:
-            # Check if any generate node failed or is still stuck, return raw status/error only
-            try:
-                graph = self._post_json("/workflow/graph", {"canvasId": canvas_id}, timeout=15)
-                gen_nodes = [
-                    n for n in ((graph.get("workflow") or {}).get("nodes") or [])
-                    if str(n.get("subType") or "").upper() == "GENERATE"
-                ]
-                if gen_nodes:
-                    st = str(gen_nodes[-1].get("status") or "UNKNOWN")
-                    detail = self._fetch_node_failure_detail(canvas_id, str(gen_nodes[-1].get("id") or ""), st)
-                    raise RuntimeError(f"canvas={canvas_id} status={st}: {detail}")
-            except RuntimeError:
-                raise
-            except Exception:
-                pass
-            reply_preview = "".join(texts).strip()[:160]
-            raise RuntimeError(reply_preview or f"canvas={canvas_id}: 未返回生成产物")
-
-        return {
-            "canvas_id": canvas_id,
-            "session_id": session_id,
-            "pinned_model": pinned_model,
-            "urls": urls,
-            "reply": "".join(texts).strip(),
-            "status": res.get("status") or "SUCCESS",
-        }
-
+    # ------------------------------------------------------------ public: image
     def generate_image(
         self,
         *,
@@ -784,44 +638,46 @@ class TensorCanvasClient:
         ref_items: list[dict[str, Any]] = []
         img_idx = 0
         for asset in ref_assets:
-            if asset.get("kind") != "image":
+            if asset.get("kind") != "image" or self._resolve_local_file(asset) is None:
                 continue
-            if self._resolve_local_file(asset) is not None:
-                img_idx += 1
-                ref_items.append({**asset, "tag": f"@图片{img_idx}"})
+            img_idx += 1
+            ref_items.append({**asset, "tag": f"@图片{img_idx}"})
 
-        pinned = resolve_pinned_model(model, kind="image", has_refs=bool(ref_items))
-        clean_prompt = (prompt or "").strip() or "生成一张高质量电影感画面"
-        aspect_hint = f"，画面比例 {aspect}" if aspect and aspect != "自适应" else ""
-        ref_hint = "，结合画布上已选中的参考图节点" if ref_items else ""
-        full_msg = f"请直接生成图片（不要反问，立即调用生图工具）{ref_hint}{aspect_hint}：\n{clean_prompt}"
+        model_key = resolve_model_key(model, kind="image")
+        clean_prompt = (prompt or "").strip() or "a high quality cinematic image"
+        if ref_items and "@图片" not in clean_prompt and "@image" not in clean_prompt:
+            refs = " ".join(f"@image{i + 1}" for i in range(len(ref_items)))
+            clean_prompt = f"Reference: {refs}\n{clean_prompt}"
 
-        gen = self._run_agent_generation(
-            expected_kind="image",
-            pinned_model=pinned,
-            message=full_msg,
+        def configure(req: dict[str, Any], ctx: dict[str, Any]) -> None:
+            p = req["params"]
+            if aspect and aspect != "自适应":
+                p["aspectRatio"] = aspect
+            req["taskType"] = "IMG2IMG" if ctx["has_refs"] else "TXT2IMG"
+
+        gen = self._run_generate_node(
+            kind="image",
+            model_key=model_key,
+            prompt=clean_prompt,
             ref_items=ref_items,
+            configure=configure,
             cancel_event=cancel_event,
             on_session_created=on_session_created,
+            timeout_sec=600,
         )
 
         remote_url = gen["urls"][0]
-        dl = requests.get(remote_url, timeout=120)
-        dl.raise_for_status()
-
-        out_dir = output_dir / "images"
-        out_dir.mkdir(parents=True, exist_ok=True)
         ext = ".png"
         low_url = remote_url.lower().split("?")[0]
         for cand_ext in (".png", ".jpg", ".jpeg", ".webp"):
             if low_url.endswith(cand_ext):
                 ext = cand_ext
                 break
-        filename = f"tensor-{pinned.lower()}-{uuid4().hex[:8]}{ext}"
-        target = out_dir / filename
-        target.write_bytes(dl.content)
+        filename = f"tensor-{model_key.lower()}-{uuid4().hex[:8]}{ext}"
+        target = output_dir / "images" / filename
+        self._download(remote_url, target, timeout=120)
 
-        dims = aspect
+        dims = gen["dims"] or aspect
         try:
             with Image.open(target) as im:
                 dims = f"{im.width}x{im.height}"
@@ -829,15 +685,16 @@ class TensorCanvasClient:
             pass
 
         return {
-            "model": pinned,
+            "model": model_key,
             "filename": filename,
             "path": target,
             "size": dims,
             "remote_url": remote_url,
             "canvas_id": gen["canvas_id"],
-            "session_id": gen["session_id"],
+            "session_id": gen["run_id"],
         }
 
+    # ------------------------------------------------------------ public: video
     def generate_video(
         self,
         *,
@@ -855,54 +712,46 @@ class TensorCanvasClient:
     ) -> dict[str, Any]:
         ref_items: list[dict[str, Any]] = []
         if mode != "t2v":
-            for s in slots:
-                if self._resolve_local_file(s) is not None:
-                    ref_items.append(s)
+            ref_items = [s for s in slots if self._resolve_local_file(s) is not None]
 
-        pinned = resolve_pinned_model(model, kind="video", has_refs=bool(ref_items))
-        model_hint_name = TENSOR_PROMPT_MODEL_HINTS.get(str(model or "").strip())
-        if not model_hint_name and "2.5" in str(model or "").lower():
-            model_hint_name = "Seedance 2.5 Flash" if "flash" in str(model or "").lower() else "Seedance 2.5"
-            pinned = "DEFAULT"
-        clean_prompt = (prompt or "").strip() or "生成一段电影感运镜视频"
-        hints: list[str] = []
-        if model_hint_name:
-            hints.append(f"务必使用 {model_hint_name} 模型")
-        if aspect and aspect != "自适应":
-            hints.append(f"比例 {aspect}")
-        if duration:
-            hints.append(f"时长约 {duration} 秒")
-        if resolution:
-            hints.append(f"分辨率 {resolution}")
-        if not generate_audio:
-            hints.append("静音/不生成音频")
-        hint_str = "，".join(hints)
-        ref_note = "，使用画布上已选中的所有参考素材节点" if ref_items else ""
-        full_msg = f"请直接生成视频（不要反问，立即调用视频生成工具{ref_note}，{hint_str}）：\n{clean_prompt}"
+        model_key = resolve_model_key(model, kind="video")
+        clean_prompt = (prompt or "").strip() or "a cinematic video shot with smooth camera motion"
 
-        gen = self._run_agent_generation(
-            expected_kind="video",
-            pinned_model=pinned,
-            message=full_msg,
+        def configure(req: dict[str, Any], ctx: dict[str, Any]) -> None:
+            p = req["params"]
+            if aspect and aspect != "自适应":
+                p["aspectRatio"] = aspect
+            if resolution:
+                p["imageSize"] = resolution
+            vp = p.get("videoParams") or {}
+            if duration:
+                vp["dur"] = str(int(duration))
+            vp["hasAudioOutput"] = bool(generate_audio)
+            vp["refVideoDurations"] = ctx["video_durations"]
+            vp["mode"] = "NORMAL" if ctx["video_durations"] else "DEFAULT"
+            p["videoParams"] = vp
+            req["taskType"] = "REF2VIDEO"
+
+        gen = self._run_generate_node(
+            kind="video",
+            model_key=model_key,
+            prompt=clean_prompt,
             ref_items=ref_items,
+            configure=configure,
             cancel_event=cancel_event,
             on_session_created=on_session_created,
+            timeout_sec=1800,
         )
 
         remote_url = gen["urls"][0]
-        dl = requests.get(remote_url, timeout=180)
-        dl.raise_for_status()
-
-        out_dir = output_dir / "videos"
-        out_dir.mkdir(parents=True, exist_ok=True)
-        filename = f"tensor-{pinned.lower()}-{uuid4().hex[:8]}.mp4"
-        target = out_dir / filename
-        target.write_bytes(dl.content)
+        filename = f"tensor-{model_key.lower()}-{uuid4().hex[:8]}.mp4"
+        target = output_dir / "videos" / filename
+        self._download(remote_url, target, timeout=300)
 
         return {
-            "task_id": gen["session_id"],
+            "task_id": gen["run_id"],
             "canvas_id": gen["canvas_id"],
-            "model": pinned,
+            "model": model_key,
             "filename": filename,
             "path": target,
             "remote_url": remote_url,

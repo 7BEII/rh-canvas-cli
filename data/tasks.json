@@ -190,5 +190,89 @@
     "created_at": "2026-11-26T06:26:13.228686+00:00",
     "finished_at": "2026-11-26T06:32:09.305689+00:00",
     "duration_ms": 356071
+  },
+  {
+    "id": "task-cb23cea189",
+    "node_id": "e2e-img-txt",
+    "node_name": "E2E生图-无参考图",
+    "node_type": "image",
+    "status": "done",
+    "message": "Tensor 生图成功（NANO_BANANA_2）",
+    "provider": "tensor:NANO_BANANA_2",
+    "created_at": "2026-11-26T07:34:48.732832+00:00",
+    "finished_at": "2026-11-26T07:36:04.561208+00:00",
+    "duration_ms": 75823
+  },
+  {
+    "id": "task-f40ea12694",
+    "node_id": "e2e-img-ref",
+    "node_name": "E2E生图-有参考图",
+    "node_type": "image",
+    "status": "error",
+    "message": "('Connection aborted.', ConnectionResetError(10054, '远程主机强迫关闭了一个现有的连接。'))",
+    "provider": "tensor:NANO_BANANA_2",
+    "created_at": "2026-11-26T07:36:04.584326+00:00",
+    "finished_at": "2026-11-26T07:36:11.519109+00:00",
+    "duration_ms": 6934
+  },
+  {
+    "id": "task-8661a3c6ee",
+    "node_id": "e2e-img-txt",
+    "node_name": "E2E生图-无参考图",
+    "node_type": "image",
+    "status": "done",
+    "message": "Tensor 生图成功（NANO_BANANA_2）",
+    "provider": "tensor:NANO_BANANA_2",
+    "created_at": "2026-11-26T07:44:37.943564+00:00",
+    "finished_at": "2026-11-26T07:47:49.605439+00:00",
+    "duration_ms": 191658
+  },
+  {
+    "id": "task-fa3401588d",
+    "node_id": "e2e-img-ref",
+    "node_name": "E2E生图-有参考图",
+    "node_type": "image",
+    "status": "error",
+    "message": "Tensor 业务失败：no generation node selected",
+    "provider": "tensor:NANO_BANANA_2",
+    "created_at": "2026-11-26T07:47:49.631730+00:00",
+    "finished_at": "2026-11-26T07:48:03.638180+00:00",
+    "duration_ms": 14006
+  },
+  {
+    "id": "task-ba4e5762c9",
+    "node_id": "e2e-img-txt",
+    "node_name": "E2E生图-无参考图",
+    "node_type": "image",
+    "status": "done",
+    "message": "Tensor 生图成功（NANO_BANANA_2）",
+    "provider": "tensor:NANO_BANANA_2",
+    "created_at": "2026-11-26T07:49:07.901299+00:00",
+    "finished_at": "2026-11-26T07:51:20.852085+00:00",
+    "duration_ms": 132947
+  },
+  {
+    "id": "task-0dccbaf5e8",
+    "node_id": "e2e-img-ref",
+    "node_name": "E2E生图-有参考图",
+    "node_type": "image",
+    "status": "done",
+    "message": "Tensor 生图成功（NANO_BANANA_2）",
+    "provider": "tensor:NANO_BANANA_2",
+    "created_at": "2026-11-26T07:51:20.864910+00:00",
+    "finished_at": "2026-11-26T07:54:25.132161+00:00",
+    "duration_ms": 184263
+  },
+  {
+    "id": "task-21ede9ea7d",
+    "node_id": "e2e-vid-fast",
+    "node_name": "E2E视频-Seedance2.0Fast",
+    "node_type": "video",
+    "status": "done",
+    "message": "Tensor 生成成功（SEEDANCE_2_0_FAST · 会话 1071197788437530658）",
+    "provider": "tensor:SEEDANCE_2_0_FAST",
+    "created_at": "2026-11-26T07:54:25.139320+00:00",
+    "finished_at": "2026-11-26T07:56:45.646090+00:00",
+    "duration_ms": 140503
   }
 ]

@@ -110,6 +110,53 @@ const edges = computed(() => {
   return list;
 });
 
+// Focus highlighting: when cards are selected, emphasise their direct upstream / downstream
+// neighbours and dim everything else, so it's obvious which assets are actually wired in.
+const focus = computed(() => {
+  const selectedIds = new Set(canvas.cards.filter((c) => c.selected).map((c) => c.id));
+  const related = new Set<string>(selectedIds);
+  if (selectedIds.size) {
+    for (const card of canvas.cards) {
+      for (const r of card.refs || []) {
+        if (selectedIds.has(card.id)) related.add(r.from);
+        if (selectedIds.has(r.from)) related.add(card.id);
+      }
+    }
+  }
+  return { active: selectedIds.size > 0 && related.size > selectedIds.size, selectedIds, related };
+});
+
+function nodeFocusClass(card: CanvasCard) {
+  const f = focus.value;
+  if (!f.active || f.selectedIds.has(card.id)) return {};
+  return { 'focus-related': f.related.has(card.id), 'focus-dimmed': !f.related.has(card.id) };
+}
+
+const activeEdges = computed(() => edges.value.filter((e) => e.active));
+
+// Badges like "@图片3" on upstream cards of the single selected video node (same numbering as the composer panel)
+const refBadges = computed(() => {
+  const target = activeVideoCard.value;
+  if (!target) return [];
+  const counters = { image: 0, video: 0, audio: 0 } as Record<string, number>;
+  const prefix: Record<string, string> = { image: '图片', video: '视频', audio: '音频' };
+  const byCard = new Map<string, string[]>();
+  for (const r of target.refs || []) {
+    if (!(r.kind in counters)) continue;
+    if (!canvas.cards.some((c) => c.id === r.from)) continue;
+    counters[r.kind] += 1;
+    const list = byCard.get(r.from) || [];
+    list.push(`@${prefix[r.kind]}${counters[r.kind]}`);
+    byCard.set(r.from, list);
+  }
+  const out: Array<{ id: string; x: number; y: number; text: string }> = [];
+  for (const [id, tags] of byCard) {
+    const card = canvas.cards.find((c) => c.id === id)!;
+    out.push({ id, x: card.x + 6, y: card.y + 6, text: tags.join(' ') });
+  }
+  return out;
+});
+
 const draftEdgePath = computed(() => {
   if (!connecting.value) return '';
   const src = canvas.cards.find((c) => c.id === connecting.value!.cardId);
@@ -506,7 +553,7 @@ defineExpose({ fitToContainer, addNodeAtCenter, handleAutoLayout });
           :key="edge.key"
           :d="edge.path"
           class="edge-path"
-          :class="{ active: edge.active }"
+          :class="{ active: edge.active, dimmed: focus.active && !edge.active }"
           @click.stop="canvas.disconnectEdge(edge.from, edge.to, edge.kind)"
         >
           <title>点击断开连线</title>
@@ -519,11 +566,27 @@ defineExpose({ fitToContainer, addNodeAtCenter, handleAutoLayout });
         v-for="card in canvas.cards"
         :key="card.id"
         :card="card"
+        :class="nodeFocusClass(card)"
         :connecting-from="connecting ? { cardId: connecting.cardId, kind: connecting.kind } : null"
         @drag-start="onNodeDragStart"
         @start-connect="onStartConnect"
         @finish-connect="onFinishConnect"
       />
+
+      <!-- Highlighted edges drawn above cards so they never look like they end at a card they pass behind -->
+      <svg v-if="activeEdges.length" class="edges-svg edges-overlay">
+        <path v-for="edge in activeEdges" :key="'ov-' + edge.key" :d="edge.path" class="edge-path overlay" />
+      </svg>
+
+      <!-- @图片N badges on upstream cards of the selected video node -->
+      <div
+        v-for="b in refBadges"
+        :key="'badge-' + b.id"
+        class="ref-badge"
+        :style="{ left: b.x + 'px', top: b.y + 'px' }"
+      >
+        {{ b.text }}
+      </div>
     </div>
 
     <!-- Marquee Selection -->
@@ -699,6 +762,46 @@ defineExpose({ fitToContainer, addNodeAtCenter, handleAutoLayout });
 .edge-path:hover {
   stroke: var(--accent);
   stroke-width: 2.8;
+}
+
+.edge-path.dimmed {
+  opacity: 0.25;
+}
+
+.edges-overlay {
+  pointer-events: none;
+}
+
+.edge-path.overlay {
+  stroke: var(--accent);
+  stroke-width: 1.8;
+  opacity: 0.85;
+  pointer-events: none;
+}
+
+.focus-dimmed {
+  opacity: 0.32;
+  filter: grayscale(0.6);
+  transition: opacity 0.15s ease, filter 0.15s ease;
+}
+
+.focus-related {
+  transition: opacity 0.15s ease;
+}
+
+.ref-badge {
+  position: absolute;
+  z-index: 3;
+  padding: 2px 6px;
+  border-radius: 6px;
+  background: var(--accent);
+  color: #111;
+  font-size: 10.5px;
+  font-weight: 700;
+  line-height: 1.4;
+  white-space: nowrap;
+  pointer-events: none;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.4);
 }
 
 .edge-path.draft {
