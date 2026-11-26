@@ -162,6 +162,14 @@ export const apiClient = {
     return `${API_BASE}/projects/${encodeURIComponent(id)}/export-zip`;
   },
 
+  exportSelectedProjectsZipUrl(projectIds: string[]) {
+    if (projectIds.length === 1) {
+      return `${API_BASE}/projects/${encodeURIComponent(projectIds[0])}/export-zip`;
+    }
+    const ids = projectIds.map((id) => encodeURIComponent(id)).join(',');
+    return `${API_BASE}/projects/export-zip?ids=${ids}`;
+  },
+
   async exportSelectedProjectsZip(projectIds: string[]): Promise<{ blob: Blob; filename: string }> {
     const res = await fetch(`${API_BASE}/projects/export-zip`, {
       method: 'POST',

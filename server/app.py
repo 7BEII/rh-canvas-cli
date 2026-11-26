@@ -243,15 +243,20 @@ def create_app() -> Flask:
         except ValueError as exc:
             return _json_error(exc, 400)
 
-    @app.post("/api/projects/export-zip")
+    @app.route("/api/projects/export-zip", methods=["GET", "POST"])
     def export_selected_as_zip():
-        payload: dict[str, Any] = request.get_json(silent=True) or {}
-        project_ids = payload.get("project_ids")
-        if not isinstance(project_ids, list) or not project_ids:
+        if request.method == "GET":
+            raw_ids = str(request.args.get("ids") or "").strip()
+            project_ids = [x.strip() for x in raw_ids.split(",") if x.strip()]
+        else:
+            payload: dict[str, Any] = request.get_json(silent=True) or {}
+            raw = payload.get("project_ids")
+            project_ids = [str(pid).strip() for pid in raw if str(pid).strip()] if isinstance(raw, list) else []
+        if not project_ids:
             return _json_error("请至少选择一个画布", 400)
         try:
             buf, download_name = export_selected_projects_zip(
-                [str(pid) for pid in project_ids],
+                project_ids,
                 projects=projects,
                 assets=assets,
                 settings=settings,

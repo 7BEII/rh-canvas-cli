@@ -40,7 +40,6 @@ const fileInput = ref<HTMLInputElement | null>(null);
 const coverInput = ref<HTMLInputElement | null>(null);
 const coverTargetId = ref<string | null>(null);
 
-const selectionMode = ref(false);
 const selectedIds = ref<string[]>([]);
 const activeContextId = ref<string | null>(null);
 const renamingId = ref<string | null>(null);
@@ -86,15 +85,6 @@ function selectAllVisible() {
 
 function clearSelection() {
   selectedIds.value = [];
-  selectionMode.value = false;
-}
-
-function toggleSelectionMode() {
-  if (selectionMode.value) {
-    clearSelection();
-  } else {
-    selectionMode.value = true;
-  }
 }
 
 function closeContextMenu() {
@@ -167,7 +157,7 @@ async function handleCreateBlank() {
 function handleCardClick(event: MouseEvent, project: ProjectSummary) {
   closeContextMenu();
   if (renamingId.value === project.id) return;
-  if (selectionMode.value || selectedIds.value.length > 0 || event.ctrlKey || event.metaKey) {
+  if (selectedIds.value.length > 0 || event.ctrlKey || event.metaKey) {
     toggleSelect(project.id);
     return;
   }
@@ -312,30 +302,17 @@ async function handleDelete(project: ProjectSummary) {
   }
 }
 
-function triggerBlobDownload(blob: Blob, filename: string) {
-  const blobUrl = URL.createObjectURL(blob);
+function handleExportSelected() {
+  if (!selectedIds.value.length || batchBusy.value) return;
+  const count = selectedIds.value.length;
+  const url = apiClient.exportSelectedProjectsZipUrl(selectedIds.value);
   const a = document.createElement('a');
-  a.href = blobUrl;
-  a.download = filename;
+  a.href = url;
+  a.download = count === 1 ? 'canvas.zip' : `rh-canvas-batch-${count}.zip`;
   document.body.appendChild(a);
   a.click();
   a.remove();
-  window.setTimeout(() => URL.revokeObjectURL(blobUrl), 2000);
-}
-
-async function handleExportSelected() {
-  if (!selectedIds.value.length || batchBusy.value) return;
-  batchBusy.value = true;
-  try {
-    canvasStore.showToast(`正在打包导出选中的 ${selectedIds.value.length} 个画布…`);
-    const { blob, filename } = await apiClient.exportSelectedProjectsZip(selectedIds.value);
-    triggerBlobDownload(blob, filename);
-    canvasStore.showToast(`已导出 ${selectedIds.value.length} 个画布 ZIP`);
-  } catch (err: any) {
-    canvasStore.showToast(`导出失败：${err?.message || '未知错误'}`);
-  } finally {
-    batchBusy.value = false;
-  }
+  canvasStore.showToast(`正在打包下载选中的 ${count} 个画布 ZIP（含素材）…`);
 }
 
 async function handleBatchStage(target: 'online' | 'test') {
@@ -380,17 +357,6 @@ async function handleBatchDelete() {
   }
 }
 
-function handleExportWorkspace() {
-  const url = apiClient.exportWorkspaceZipUrl(true);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = 'rh-canvas-migration.zip';
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
-  canvasStore.showToast('正在一键打包全部画布、本地素材与 API 配置…');
-}
-
 function handleExportSingle(project: ProjectSummary) {
   closeContextMenu();
   const url = apiClient.exportProjectZipUrl(project.id);
@@ -403,36 +369,21 @@ function handleExportSingle(project: ProjectSummary) {
   canvasStore.showToast(`正在打包导出「${project.name}」…`);
 }
 
-async function importSingleFile(file: File, autoOpen: boolean) {
+async function importSingleFile(file: File) {
   if (
     file.name.toLowerCase().endsWith('.zip') ||
     file.type === 'application/zip' ||
     file.type === 'application/x-zip-compressed'
   ) {
     const res = await projectsStore.importProjectZip(file);
-    if (res.mode === 'workspace') {
-      const total = (res.imported_projects || 0) + (res.updated_projects || 0);
-      return { count: total, assets: res.imported_assets || 0, settings: Boolean(res.restored_settings) };
+    if (res.mode === 'project' && res.project) {
+      return { count: 1, assets: res.imported_assets || 0, name: res.project.name };
     }
-    if (res.project) {
-      if (autoOpen) {
-        canvasStore.loadSnapshot(res.project.snapshot);
-      } else {
-        projectsStore.closeEditor();
-      }
-      return { count: 1, assets: res.imported_assets || 0, settings: false, name: res.project.name };
-    }
-    return { count: 0, assets: 0, settings: false };
+    const total = res.imported_projects || res.projects?.length || 0;
+    return { count: total, assets: res.imported_assets || 0, name: '' };
   }
 
   const raw = JSON.parse(await file.text());
-  if (raw && (raw.format === 'rh-canvas-settings' || (raw.video_provider && !raw.canvas && !raw.snapshot && !raw.cards))) {
-    const cfg = raw.settings || raw;
-    await apiClient.saveConfig(cfg);
-    await projectsStore.checkHealth();
-    return { count: 0, assets: 0, settings: true };
-  }
-
   let snapshot: CanvasSnapshot;
   let name = file.name.replace(/\.json$/i, '');
   if (raw.snapshot?.canvas?.cards) {
@@ -449,15 +400,11 @@ async function importSingleFile(file: File, autoOpen: boolean) {
       canvas: { cards: raw.cards, seq: raw.cards.length + 1, viewport: raw.viewport || { x: 60, y: 60, z: 0.9 } },
     };
   } else {
-    throw new Error(`${file.name} 格式不兼容`);
+    throw new Error(`${file.name} 不是有效的画布文件（缺少 canvas.cards）`);
   }
   const project = await projectsStore.importProjectJson(name, snapshot, 'test');
-  if (autoOpen) {
-    canvasStore.loadSnapshot(project.snapshot);
-  } else {
-    projectsStore.closeEditor();
-  }
-  return { count: 1, assets: 0, settings: false, name: project.name };
+  projectsStore.closeEditor();
+  return { count: 1, assets: 0, name: project.name };
 }
 
 async function handleImportFile(event: Event) {
@@ -465,35 +412,30 @@ async function handleImportFile(event: Event) {
   const files = Array.from(input.files || []);
   input.value = '';
   if (!files.length) return;
-  const isSingle = files.length === 1;
   try {
     let totalProjects = 0;
     let totalAssets = 0;
-    let restoredSettings = false;
     let singleName = '';
 
     for (const file of files) {
-      const r = await importSingleFile(file, isSingle);
+      const r = await importSingleFile(file);
       totalProjects += r.count;
       totalAssets += r.assets;
-      if (r.settings) restoredSettings = true;
       if (r.name) singleName = r.name;
     }
 
     await projectsStore.refreshList();
 
-    if (isSingle && singleName) {
+    if (totalProjects === 1 && singleName) {
       canvasStore.showToast(
         totalAssets > 0
-          ? `已导入「${singleName}」（还原 ${totalAssets} 份素材）`
-          : `已导入「${singleName}」`,
+          ? `已导入到测试版本「${singleName}」（还原 ${totalAssets} 份素材）`
+          : `已导入到测试版本「${singleName}」`,
       );
     } else {
-      const parts: string[] = [];
-      if (totalProjects > 0) parts.push(`${totalProjects} 个画布`);
+      const parts = [`${totalProjects} 个画布`];
       if (totalAssets > 0) parts.push(`${totalAssets} 份素材`);
-      if (restoredSettings) parts.push('API 与渠道配置');
-      canvasStore.showToast(`导入成功：已还原 ${parts.join('、') || '配置'}`);
+      canvasStore.showToast(`已导入到测试版本：${parts.join('、')}`);
     }
   } catch (err: any) {
     canvasStore.showToast(`导入失败：${err?.message || '无效文件'}`);
@@ -553,14 +495,10 @@ function formatTime(iso: string) {
           <Settings :size="15" />
           设置
         </button>
-        <button class="btn" type="button" title="一键打包全部画布、本地素材与 API 配置用于迁移" @click="handleExportWorkspace">
-          <Download :size="15" />
-          全量导出
-        </button>
         <button
           class="btn"
           type="button"
-          title="支持单选或多选导入画布 ZIP/JSON、迁移包或配置文件"
+          title="导入画布压缩包 ZIP（含素材）或 JSON，支持单选/多选文件"
           @click="fileInput?.click()"
         >
           <Upload :size="15" />
@@ -617,17 +555,6 @@ function formatTime(iso: string) {
       </div>
 
       <div class="toolbar-right">
-        <button
-          class="btn"
-          :class="{ 'btn-active': selectionMode || selectedIds.length > 0 }"
-          type="button"
-          title="开启多选以批量导出、上架或删除画布"
-          @click="toggleSelectionMode"
-        >
-          <CheckSquare v-if="selectionMode || selectedIds.length > 0" :size="14" />
-          <Square v-else :size="14" />
-          {{ selectedIds.length > 0 ? `已选 ${selectedIds.length}` : selectionMode ? '退出多选' : '多选' }}
-        </button>
         <div class="search-box">
           <Search :size="14" class="search-icon" />
           <input v-model="projectsStore.search" class="field search-input" placeholder="搜索上线版本或测试版本…" />
@@ -642,8 +569,8 @@ function formatTime(iso: string) {
       </div>
     </div>
 
-    <!-- 多选批量操作条 -->
-    <div v-if="selectionMode || selectedIds.length > 0" class="bulk-bar">
+    <!-- 多选批量操作条（仅在勾选画布后显示） -->
+    <div v-if="selectedIds.length > 0" class="bulk-bar">
       <div class="bulk-left">
         <span class="bulk-count">已选择 <strong>{{ selectedIds.length }}</strong> 个画布</span>
         <button class="btn" type="button" @click="selectAllVisible">
@@ -743,7 +670,7 @@ function formatTime(iso: string) {
               <button
                 type="button"
                 class="select-check"
-                :class="{ visible: selectionMode || selectedIds.length > 0 || isSelected(proj.id), active: isSelected(proj.id) }"
+                :class="{ visible: selectedIds.length > 0 || isSelected(proj.id), active: isSelected(proj.id) }"
                 :title="isSelected(proj.id) ? '取消选中' : '选中画布'"
                 @click.stop="toggleSelect(proj.id)"
               >
@@ -806,7 +733,7 @@ function formatTime(iso: string) {
                 v-else
                 class="proj-name"
                 :title="`${proj.name}（双击重命名）`"
-                @click.stop="selectionMode || selectedIds.length ? toggleSelect(proj.id) : null"
+                @click.stop="selectedIds.length ? toggleSelect(proj.id) : null"
                 @dblclick.stop="startInlineRename(proj)"
               >
                 {{ proj.name }}
@@ -864,7 +791,7 @@ function formatTime(iso: string) {
               <button
                 type="button"
                 class="select-check"
-                :class="{ visible: selectionMode || selectedIds.length > 0 || isSelected(proj.id), active: isSelected(proj.id) }"
+                :class="{ visible: selectedIds.length > 0 || isSelected(proj.id), active: isSelected(proj.id) }"
                 :title="isSelected(proj.id) ? '取消选中' : '选中画布'"
                 @click.stop="toggleSelect(proj.id)"
               >
@@ -926,7 +853,7 @@ function formatTime(iso: string) {
                 v-else
                 class="proj-name"
                 :title="`${proj.name}（双击重命名）`"
-                @click.stop="selectionMode || selectedIds.length ? toggleSelect(proj.id) : null"
+                @click.stop="selectedIds.length ? toggleSelect(proj.id) : null"
                 @dblclick.stop="startInlineRename(proj)"
               >
                 {{ proj.name }}
