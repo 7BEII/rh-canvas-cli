@@ -3,12 +3,12 @@
   "id": "canvas-98ff6b39ebf948e79782c1c1ab407b5f",
   "name": "LibTV 复刻 · Group 9 精简版",
   "created_at": "2026-11-24T15:03:52.738194+00:00",
-  "updated_at": "2026-11-25T10:26:51.592806+00:00",
+  "updated_at": "2026-11-26T06:18:57.523415+00:00",
   "node_count": 9,
   "snapshot": {
     "format": "rh-canvas",
     "version": 1,
-    "exportedAt": "2026-11-25T07:49:17.369Z",
+    "exportedAt": "2026-11-26T06:18:57.519Z",
     "schemaVersion": 1,
     "canvas": {
       "cards": [
@@ -32,7 +32,8 @@
           "type": "source",
           "width": 156,
           "x": 214,
-          "y": 10
+          "y": 10,
+          "error": ""
         },
         {
           "activeResultIndex": 0,
@@ -54,7 +55,8 @@
           "type": "source",
           "width": 148,
           "x": 60,
-          "y": 142
+          "y": 142,
+          "error": ""
         },
         {
           "activeResultIndex": 0,
@@ -76,7 +78,8 @@
           "type": "source",
           "width": 148,
           "x": 224,
-          "y": 142
+          "y": 142,
+          "error": ""
         },
         {
           "activeResultIndex": 0,
@@ -98,7 +101,8 @@
           "type": "source",
           "width": 148,
           "x": 388,
-          "y": 142
+          "y": 142,
+          "error": ""
         },
         {
           "activeResultIndex": 0,
@@ -120,7 +124,8 @@
           "type": "source",
           "width": 148,
           "x": 383,
-          "y": 324
+          "y": 324,
+          "error": ""
         },
         {
           "activeResultIndex": 0,
@@ -142,7 +147,8 @@
           "type": "source",
           "width": 156,
           "x": 60,
-          "y": 318
+          "y": 318,
+          "error": ""
         },
         {
           "activeResultIndex": 0,
@@ -164,7 +170,8 @@
           "type": "source",
           "width": 148,
           "x": 60,
-          "y": 510
+          "y": 510,
+          "error": ""
         },
         {
           "activeResultIndex": 0,
@@ -186,13 +193,14 @@
           "type": "source",
           "width": 148,
           "x": 224,
-          "y": 510
+          "y": 510,
+          "error": ""
         },
         {
           "aspect": "9:16",
           "batchCount": 1,
           "duration": 15,
-          "error": "OUTPUT_AUDIO_BLOCKED: The generated content did not pass the safety review. Adjust the prompt or input and try again.",
+          "error": "",
           "generateAudio": true,
           "height": 290,
           "id": "g9-2-v-ChztCb1cYu",
@@ -231,7 +239,7 @@
           "resolution": "480p",
           "results": [],
           "selected": false,
-          "status": "error",
+          "status": "idle",
           "stylePreset": "古风奇幻",
           "type": "video",
           "videoMode": "omni",
@@ -248,5 +256,27 @@
       }
     }
   },
-  "stage": "online"
+  "stage": "online",
+  "app_config": {
+    "enabled": true,
+    "app_id": "app-98ff6b39",
+    "description": "",
+    "inputs": [
+      {
+        "key": "loadimage",
+        "label": "人脸参考1",
+        "node_id": "g9-3-i-JDn8QUPa0x",
+        "kind": "image",
+        "required": true
+      }
+    ],
+    "outputs": [
+      {
+        "key": "save_video",
+        "label": "视频成片",
+        "node_id": "g9-2-v-ChztCb1cYu",
+        "kind": "video"
+      }
+    ]
+  }
 }

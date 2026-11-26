@@ -3,24 +3,21 @@
   "id": "canvas-6548a19f88954a61bc80f608343ed1e7",
   "name": "LibTV 复刻 · Group 5 精简版",
   "created_at": "2026-11-24T15:03:51.585272+00:00",
-  "updated_at": "2026-11-25T10:28:33.920843+00:00",
+  "updated_at": "2026-11-26T06:20:11.637774+00:00",
   "node_count": 9,
   "snapshot": {
     "format": "rh-canvas",
     "version": 1,
-    "exportedAt": "2026-11-24T15:13:03.467487+00:00",
+    "exportedAt": "2026-11-26T06:20:11.633Z",
     "schemaVersion": 1,
     "canvas": {
       "cards": [
         {
+          "activeResultIndex": 0,
+          "height": 92,
           "id": "g5-1-i-iresEpGDWq",
-          "type": "source",
           "mediaKind": "image",
           "name": "人物三视图",
-          "x": 60,
-          "y": 20,
-          "width": 156,
-          "height": 92,
           "refs": [],
           "results": [
             {
@@ -30,19 +27,20 @@
               "url": "/api/assets/input/libtv-g5-i-iresEpGDWq.png"
             }
           ],
-          "activeResultIndex": 0,
+          "selected": false,
           "status": "done",
-          "selected": false
+          "type": "source",
+          "width": 156,
+          "x": 60,
+          "y": 20,
+          "error": ""
         },
         {
+          "activeResultIndex": 0,
+          "height": 148,
           "id": "g5-3-i-OWR5fBSDLo",
-          "type": "source",
           "mediaKind": "image",
           "name": "人脸参考",
-          "x": 60,
-          "y": 142,
-          "width": 148,
-          "height": 148,
           "refs": [],
           "results": [
             {
@@ -52,19 +50,20 @@
               "url": "/api/assets/input/libtv-g5-i-OWR5fBSDLo.jpg"
             }
           ],
-          "activeResultIndex": 0,
+          "selected": false,
           "status": "done",
-          "selected": false
+          "type": "source",
+          "width": 148,
+          "x": 60,
+          "y": 142,
+          "error": ""
         },
         {
+          "activeResultIndex": 0,
+          "height": 148,
           "id": "g5-4-i-um1SumcItJ",
-          "type": "source",
           "mediaKind": "image",
           "name": "造型参考",
-          "x": 224,
-          "y": 142,
-          "width": 148,
-          "height": 148,
           "refs": [],
           "results": [
             {
@@ -74,19 +73,20 @@
               "url": "/api/assets/input/libtv-g5-i-um1SumcItJ.png"
             }
           ],
-          "activeResultIndex": 0,
+          "selected": false,
           "status": "done",
-          "selected": false
+          "type": "source",
+          "width": 148,
+          "x": 224,
+          "y": 142,
+          "error": ""
         },
         {
+          "activeResultIndex": 0,
+          "height": 148,
           "id": "g5-5-v-ialuoGNFsf",
-          "type": "source",
           "mediaKind": "video",
           "name": "深度动作参考",
-          "x": 388,
-          "y": 142,
-          "width": 148,
-          "height": 148,
           "refs": [],
           "results": [
             {
@@ -96,19 +96,20 @@
               "url": "/api/assets/input/libtv-g5-v-ialuoGNFsf.mp4"
             }
           ],
-          "activeResultIndex": 0,
+          "selected": false,
           "status": "done",
-          "selected": false
+          "type": "source",
+          "width": 148,
+          "x": 388,
+          "y": 142,
+          "error": ""
         },
         {
+          "activeResultIndex": 0,
+          "height": 100,
           "id": "g5-6-a-KSVT9Y1588",
-          "type": "source",
           "mediaKind": "audio",
           "name": "背景音乐",
-          "x": 552,
-          "y": 142,
-          "width": 156,
-          "height": 100,
           "refs": [],
           "results": [
             {
@@ -118,19 +119,20 @@
               "url": "/api/assets/input/libtv-g5-a-KSVT9Y1588.mp3"
             }
           ],
-          "activeResultIndex": 0,
+          "selected": false,
           "status": "done",
-          "selected": false
+          "type": "source",
+          "width": 156,
+          "x": 379,
+          "y": 4,
+          "error": ""
         },
         {
+          "activeResultIndex": 0,
+          "height": 198,
           "id": "g5-7-i-qE3pEOdwsC",
-          "type": "source",
           "mediaKind": "image",
           "name": "场景1",
-          "x": 60,
-          "y": 334,
-          "width": 148,
-          "height": 198,
           "refs": [],
           "results": [
             {
@@ -140,19 +142,20 @@
               "url": "/api/assets/input/libtv-g5-i-qE3pEOdwsC.png"
             }
           ],
-          "activeResultIndex": 0,
+          "selected": false,
           "status": "done",
-          "selected": false
+          "type": "source",
+          "width": 148,
+          "x": 60,
+          "y": 334,
+          "error": ""
         },
         {
+          "activeResultIndex": 0,
+          "height": 198,
           "id": "g5-8-i-vF9I15pZ1J",
-          "type": "source",
           "mediaKind": "image",
           "name": "场景2",
-          "x": 224,
-          "y": 334,
-          "width": 148,
-          "height": 198,
           "refs": [],
           "results": [
             {
@@ -162,19 +165,20 @@
               "url": "/api/assets/input/libtv-g5-i-vF9I15pZ1J.png"
             }
           ],
-          "activeResultIndex": 0,
+          "selected": false,
           "status": "done",
-          "selected": false
+          "type": "source",
+          "width": 148,
+          "x": 224,
+          "y": 334,
+          "error": ""
         },
         {
+          "activeResultIndex": 0,
+          "height": 198,
           "id": "g5-9-i-vbRBQOnlMr",
-          "type": "source",
           "mediaKind": "image",
           "name": "场景3",
-          "x": 388,
-          "y": 334,
-          "width": 148,
-          "height": 198,
           "refs": [],
           "results": [
             {
@@ -184,29 +188,26 @@
               "url": "/api/assets/input/libtv-g5-i-vbRBQOnlMr.png"
             }
           ],
-          "activeResultIndex": 0,
+          "selected": false,
           "status": "done",
-          "selected": false
+          "type": "source",
+          "width": 148,
+          "x": 388,
+          "y": 334,
+          "error": ""
         },
         {
-          "id": "g5-2-v-hfhGmGRxUV",
-          "type": "video",
-          "name": "视频成片",
-          "x": 800,
-          "y": 160,
-          "width": 210,
-          "height": 290,
-          "model": "tensor:SEEDANCE_2_5_FLASH",
-          "videoMode": "omni",
           "aspect": "9:16",
-          "resolution": "720p",
+          "batchCount": 1,
           "duration": 15,
           "generateAudio": true,
-          "batchCount": 1,
-          "quality": "standard",
-          "stylePreset": "古风奇幻",
-          "prompt": "参考视频 @视频1  深度信息及镜头切换节奏，整体的音乐使用 @音频1  这一段音乐；\n\n @图片4 「人物三视图」节点输出的五宫格人物参考图 （人物三视图）为女孩人物形象，人物特征以 @图片4 「人物三视图」节点输出的五宫格人物参考图 为唯一标准，不可自行更改。\n\n分镜执行（动作/运镜/场景严格参照 @视频1  对应时间段，人物形象严格参照 @图片4 「人物三视图」节点输出的五宫格人物参考图 ）：\n\n段落 1 ｜ 0.0–3.0s（3.0s）\n@视频1  对应画面， @图片4 「人物三视图」节点输出的五宫格人物参考图 为人物， @图片1  为这一段场景\n景别/机位：高角度远景，缓慢向前推近（轻微变焦）\n画面：层层蓝白钙化梯池占满画面，女子赤脚立于池边台地，抬手调整头纱、轻提裙摆，周围低矮灌木、远景林木\n\n段落 2 ｜ 3.0–8.0s（5.0s）\n@视频1  对应画面， @图片4 「人物三视图」节点输出的五宫格人物参考图 为人物， @图片2  为这一段场景\n景别/机位：中景，平视，持续向前推近、人物居中\n画面：女子赤足走在钙化池埂上，手扶头纱，先看向镜头再侧头望左，裙摆轻提；米白裙、古铜枝叶项链、红唇清晰，身后蓝绿池水虚化带闪光光斑\n\n段落 3 ｜ 8.0–15.0s（7.0s）\n@视频1  对应画面， @图片4 「人物三视图」节点输出的五宫格人物参考图 为人物， @图片3  为这一段场景\n景别/机位：近景推至面部特写，平视，持续缓慢推近\n画面：白纱被风吹起拂过脸颊，女子低头后抬眼正视镜头、静止定格；妆容、项链与长发纹理清晰，背景高度虚化为蓝绿池水与林木\n\n\n约束： @图片4 「人物三视图」节点输出的五宫格人物参考图 中的发色/服装颜色/伞样式为固定值不可修改；禁止出现与 @图片4 「人物三视图」节点输出的五宫格人物参考图 不符的第二种人物形象。",
+          "height": 290,
+          "id": "g5-2-v-hfhGmGRxUV",
           "localMedia": [],
+          "model": "tensor:SEEDANCE_2_5_FLASH",
+          "name": "视频成片",
+          "prompt": "参考视频 @视频1  深度信息及镜头切换节奏，整体的音乐使用 @音频1  这一段音乐；\n\n @图片4 「人物三视图」节点输出的五宫格人物参考图 （人物三视图）为女孩人物形象，人物特征以 @图片4 「人物三视图」节点输出的五宫格人物参考图 为唯一标准，不可自行更改。\n\n分镜执行（动作/运镜/场景严格参照 @视频1  对应时间段，人物形象严格参照 @图片4 「人物三视图」节点输出的五宫格人物参考图 ）：\n\n段落 1 ｜ 0.0–3.0s（3.0s）\n@视频1  对应画面， @图片4 「人物三视图」节点输出的五宫格人物参考图 为人物， @图片1  为这一段场景\n景别/机位：高角度远景，缓慢向前推近（轻微变焦）\n画面：层层蓝白钙化梯池占满画面，女子赤脚立于池边台地，抬手调整头纱、轻提裙摆，周围低矮灌木、远景林木\n\n段落 2 ｜ 3.0–8.0s（5.0s）\n@视频1  对应画面， @图片4 「人物三视图」节点输出的五宫格人物参考图 为人物， @图片2  为这一段场景\n景别/机位：中景，平视，持续向前推近、人物居中\n画面：女子赤足走在钙化池埂上，手扶头纱，先看向镜头再侧头望左，裙摆轻提；米白裙、古铜枝叶项链、红唇清晰，身后蓝绿池水虚化带闪光光斑\n\n段落 3 ｜ 8.0–15.0s（7.0s）\n@视频1  对应画面， @图片4 「人物三视图」节点输出的五宫格人物参考图 为人物， @图片3  为这一段场景\n景别/机位：近景推至面部特写，平视，持续缓慢推近\n画面：白纱被风吹起拂过脸颊，女子低头后抬眼正视镜头、静止定格；妆容、项链与长发纹理清晰，背景高度虚化为蓝绿池水与林木\n\n\n约束： @图片4 「人物三视图」节点输出的五宫格人物参考图 中的发色/服装颜色/伞样式为固定值不可修改；禁止出现与 @图片4 「人物三视图」节点输出的五宫格人物参考图 不符的第二种人物形象。",
+          "quality": "standard",
           "refs": [
             {
               "from": "g5-7-i-qE3pEOdwsC",
@@ -239,18 +240,48 @@
               "label": "背景音乐"
             }
           ],
+          "resolution": "720p",
           "results": [],
+          "selected": false,
           "status": "idle",
-          "selected": false
+          "stylePreset": "古风奇幻",
+          "type": "video",
+          "videoMode": "omni",
+          "width": 210,
+          "x": 583,
+          "y": 158,
+          "error": ""
         }
       ],
       "seq": 10,
       "viewport": {
-        "x": 160,
-        "y": 110,
-        "z": 0.65
+        "x": 171.00996767932224,
+        "y": 90.83437970377858,
+        "z": 1.414
       }
     }
   },
-  "stage": "online"
+  "stage": "online",
+  "app_config": {
+    "enabled": true,
+    "app_id": "app-6548a19f",
+    "description": "",
+    "inputs": [
+      {
+        "key": "loadimage",
+        "label": "人脸参考",
+        "node_id": "g5-3-i-OWR5fBSDLo",
+        "kind": "image",
+        "required": true
+      }
+    ],
+    "outputs": [
+      {
+        "key": "save_video",
+        "label": "视频成片",
+        "node_id": "g5-2-v-hfhGmGRxUV",
+        "kind": "video"
+      }
+    ]
+  }
 }

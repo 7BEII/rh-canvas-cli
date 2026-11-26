@@ -3,24 +3,21 @@
   "id": "canvas-a8293ceb0a0641ebb55d257b851f31c7",
   "name": "LibTV 复刻 · Group 6 精简版",
   "created_at": "2026-11-24T15:03:51.894039+00:00",
-  "updated_at": "2026-11-25T10:27:15.548956+00:00",
+  "updated_at": "2026-11-26T06:19:06.550470+00:00",
   "node_count": 11,
   "snapshot": {
     "format": "rh-canvas",
     "version": 1,
-    "exportedAt": "2026-11-24T15:13:03.469489+00:00",
+    "exportedAt": "2026-11-26T06:19:06.546Z",
     "schemaVersion": 1,
     "canvas": {
       "cards": [
         {
+          "activeResultIndex": 0,
+          "height": 92,
           "id": "g6-1-i-4GitUUAczz",
-          "type": "source",
           "mediaKind": "image",
           "name": "人物三视图",
-          "x": 60,
-          "y": 20,
-          "width": 156,
-          "height": 92,
           "refs": [],
           "results": [
             {
@@ -30,19 +27,20 @@
               "url": "/api/assets/input/libtv-g6-i-4GitUUAczz.png"
             }
           ],
-          "activeResultIndex": 0,
+          "selected": false,
           "status": "done",
-          "selected": false
+          "type": "source",
+          "width": 156,
+          "x": 60,
+          "y": 20,
+          "error": ""
         },
         {
+          "activeResultIndex": 0,
+          "height": 148,
           "id": "g6-3-i-LWPBoO8LOw",
-          "type": "source",
           "mediaKind": "image",
           "name": "人脸参考",
-          "x": 60,
-          "y": 142,
-          "width": 148,
-          "height": 148,
           "refs": [],
           "results": [
             {
@@ -52,19 +50,20 @@
               "url": "/api/assets/input/libtv-g6-i-LWPBoO8LOw.jpg"
             }
           ],
-          "activeResultIndex": 0,
+          "selected": false,
           "status": "done",
-          "selected": false
+          "type": "source",
+          "width": 148,
+          "x": 60,
+          "y": 142,
+          "error": ""
         },
         {
+          "activeResultIndex": 0,
+          "height": 148,
           "id": "g6-4-i-PrG4OXQjRa",
-          "type": "source",
           "mediaKind": "image",
           "name": "造型参考",
-          "x": 224,
-          "y": 142,
-          "width": 148,
-          "height": 148,
           "refs": [],
           "results": [
             {
@@ -74,19 +73,20 @@
               "url": "/api/assets/input/libtv-g6-i-PrG4OXQjRa.png"
             }
           ],
-          "activeResultIndex": 0,
+          "selected": false,
           "status": "done",
-          "selected": false
+          "type": "source",
+          "width": 148,
+          "x": 224,
+          "y": 142,
+          "error": ""
         },
         {
+          "activeResultIndex": 0,
+          "height": 148,
           "id": "g6-5-v-XRhpy5bTFL",
-          "type": "source",
           "mediaKind": "video",
           "name": "深度动作参考",
-          "x": 388,
-          "y": 142,
-          "width": 148,
-          "height": 148,
           "refs": [],
           "results": [
             {
@@ -96,19 +96,20 @@
               "url": "/api/assets/input/libtv-g6-v-XRhpy5bTFL.mp4"
             }
           ],
-          "activeResultIndex": 0,
+          "selected": false,
           "status": "done",
-          "selected": false
+          "type": "source",
+          "width": 148,
+          "x": 388,
+          "y": 142,
+          "error": ""
         },
         {
+          "activeResultIndex": 0,
+          "height": 100,
           "id": "g6-6-a-SSFWQ0wSAj",
-          "type": "source",
           "mediaKind": "audio",
           "name": "背景音乐",
-          "x": 552,
-          "y": 142,
-          "width": 156,
-          "height": 100,
           "refs": [],
           "results": [
             {
@@ -118,19 +119,20 @@
               "url": "/api/assets/input/libtv-g6-a-SSFWQ0wSAj.mp3"
             }
           ],
-          "activeResultIndex": 0,
+          "selected": false,
           "status": "done",
-          "selected": false
+          "type": "source",
+          "width": 156,
+          "x": 552,
+          "y": 142,
+          "error": ""
         },
         {
+          "activeResultIndex": 0,
+          "height": 198,
           "id": "g6-7-i-lr9yI3xWBq",
-          "type": "source",
           "mediaKind": "image",
           "name": "场景1",
-          "x": 60,
-          "y": 334,
-          "width": 148,
-          "height": 198,
           "refs": [],
           "results": [
             {
@@ -140,19 +142,20 @@
               "url": "/api/assets/input/libtv-g6-i-lr9yI3xWBq.png"
             }
           ],
-          "activeResultIndex": 0,
+          "selected": false,
           "status": "done",
-          "selected": false
+          "type": "source",
+          "width": 148,
+          "x": 60,
+          "y": 334,
+          "error": ""
         },
         {
+          "activeResultIndex": 0,
+          "height": 198,
           "id": "g6-8-i-QVDdJs4h5n",
-          "type": "source",
           "mediaKind": "image",
           "name": "场景2",
-          "x": 224,
-          "y": 334,
-          "width": 148,
-          "height": 198,
           "refs": [],
           "results": [
             {
@@ -162,19 +165,20 @@
               "url": "/api/assets/input/libtv-g6-i-QVDdJs4h5n.png"
             }
           ],
-          "activeResultIndex": 0,
+          "selected": false,
           "status": "done",
-          "selected": false
+          "type": "source",
+          "width": 148,
+          "x": 224,
+          "y": 334,
+          "error": ""
         },
         {
+          "activeResultIndex": 0,
+          "height": 198,
           "id": "g6-9-i-IdkM2e6Yk0",
-          "type": "source",
           "mediaKind": "image",
           "name": "场景3",
-          "x": 388,
-          "y": 334,
-          "width": 148,
-          "height": 198,
           "refs": [],
           "results": [
             {
@@ -184,19 +188,20 @@
               "url": "/api/assets/input/libtv-g6-i-IdkM2e6Yk0.png"
             }
           ],
-          "activeResultIndex": 0,
+          "selected": false,
           "status": "done",
-          "selected": false
+          "type": "source",
+          "width": 148,
+          "x": 388,
+          "y": 334,
+          "error": ""
         },
         {
+          "activeResultIndex": 0,
+          "height": 198,
           "id": "g6-10-i-8QpvnQVY6y",
-          "type": "source",
           "mediaKind": "image",
           "name": "场景4",
-          "x": 552,
-          "y": 334,
-          "width": 148,
-          "height": 198,
           "refs": [],
           "results": [
             {
@@ -206,19 +211,20 @@
               "url": "/api/assets/input/libtv-g6-i-8QpvnQVY6y.png"
             }
           ],
-          "activeResultIndex": 0,
+          "selected": false,
           "status": "done",
-          "selected": false
+          "type": "source",
+          "width": 148,
+          "x": 552,
+          "y": 334,
+          "error": ""
         },
         {
+          "activeResultIndex": 0,
+          "height": 198,
           "id": "g6-11-i-PDWM6SHjGd",
-          "type": "source",
           "mediaKind": "image",
           "name": "场景5",
-          "x": 60,
-          "y": 564,
-          "width": 148,
-          "height": 198,
           "refs": [],
           "results": [
             {
@@ -228,29 +234,26 @@
               "url": "/api/assets/input/libtv-g6-i-PDWM6SHjGd.png"
             }
           ],
-          "activeResultIndex": 0,
+          "selected": false,
           "status": "done",
-          "selected": false
+          "type": "source",
+          "width": 148,
+          "x": 60,
+          "y": 564,
+          "error": ""
         },
         {
-          "id": "g6-2-v-cUnmraF4N4",
-          "type": "video",
-          "name": "视频成片",
-          "x": 800,
-          "y": 160,
-          "width": 210,
-          "height": 290,
-          "model": "tensor:SEEDANCE_2_5_FLASH",
-          "videoMode": "omni",
           "aspect": "9:16",
-          "resolution": "720p",
+          "batchCount": 1,
           "duration": 15,
           "generateAudio": true,
-          "batchCount": 1,
-          "quality": "standard",
-          "stylePreset": "古风奇幻",
-          "prompt": "参考视频 @视频1  深度信息及镜头切换节奏，整体的音乐使用 @音频1  这一段音乐；\n\n @图片6 「人物三视图」节点输出的五宫格人物参考图 （人物三视图）为女孩人物形象，人物特征以 @图片6 「人物三视图」节点输出的五宫格人物参考图 为唯一标准，不可自行更改。\n\n分镜执行（动作/运镜/场景严格参照 @视频1  对应时间段，人物形象严格参照 @图片6 「人物三视图」节点输出的五宫格人物参考图 ）：\n\n镜头 1 ｜ 0.0–2.4s（2.4s）侧身立湖\n@视频1  对应画面， @图片6 「人物三视图」节点输出的五宫格人物参考图 为人物， @图片1  为这一段场景。\n景别/机位：中景，平视，镜头轻微向前推进\n画面：女子侧身立于碎石滩，面朝湖泊，双手交叠腰腹，衣摆微动；蓝绿湖水、对岸针叶林，水面星芒反光\n\n镜头 2 ｜ 2.4–5.8s（3.4s）转脸 · 轻抚毛饰\n@视频1  对应画面， @图片6 「人物三视图」节点输出的五宫格人物参考图 为人物， @图片2  为这一段场景。\n景别/机位：中近景，平视，镜头缓慢环绕推进\n画面：女子转头正对镜头，红唇、耳饰与红珠颈饰完整露出，右手抬起轻触发丝/衣领、再抚过衣身白毛饰，左手留腰侧，背景湖林虚化\n\n镜头 3 ｜ 5.8–8.6s（2.8s）树下静坐垂眸\n@视频1  对应画面， @图片6 「人物三视图」节点输出的五宫格人物参考图 为人物， @图片3  为这一段场景。\n景别/机位：近景，平视略俯，镜头轻微上移\n画面：女子坐下垂眸，衣摆纹样铺展，头顶绿叶在脸与衣物上投下斑驳光影，左手放腿上、右手搭身侧，湖水在身后\n\n镜头 4 ｜ 8.6–11.6s（3.0s）抬眼正视（面部大特写）\n@视频1  对应画面， @图片6 「人物三视图」节点输出的五宫格人物参考图 为人物， @图片4  为这一段场景。\n景别/机位：面部大特写，平视，极轻微移动对焦\n画面：红珠绿松石额饰、水滴银红耳坠、多层红珠项链清晰；女子由垂眸抬眼直视镜头，表情平静柔和，背景完全虚化为蓝绿光斑\n\n镜头 5 ｜ 11.6–15.0s（3.4s）广角全景回望（收尾）\n@视频1  对应画面， @图片6 「人物三视图」节点输出的五宫格人物参考图 为人物， @图片5  为这一段场景。\n景别/机位：全景，低角度仰拍，固定机位\n画面：蓝天白云入镜，太阳在左上角形成星芒，对面山坡森林覆盖；女子立于碎石滩，由侧对湖转头回望镜头，双手交叠身前，衣摆垂落\n\n\n约束： @图片6 「人物三视图」节点输出的五宫格人物参考图 中的发色/服装颜色/伞样式为固定值不可修改；禁止出现与 @图片6 「人物三视图」节点输出的五宫格人物参考图 不符的第二种人物形象。",
+          "height": 290,
+          "id": "g6-2-v-cUnmraF4N4",
           "localMedia": [],
+          "model": "tensor:SEEDANCE_2_5_FLASH",
+          "name": "视频成片",
+          "prompt": "参考视频 @视频1  深度信息及镜头切换节奏，整体的音乐使用 @音频1  这一段音乐；\n\n @图片6 「人物三视图」节点输出的五宫格人物参考图 （人物三视图）为女孩人物形象，人物特征以 @图片6 「人物三视图」节点输出的五宫格人物参考图 为唯一标准，不可自行更改。\n\n分镜执行（动作/运镜/场景严格参照 @视频1  对应时间段，人物形象严格参照 @图片6 「人物三视图」节点输出的五宫格人物参考图 ）：\n\n镜头 1 ｜ 0.0–2.4s（2.4s）侧身立湖\n@视频1  对应画面， @图片6 「人物三视图」节点输出的五宫格人物参考图 为人物， @图片1  为这一段场景。\n景别/机位：中景，平视，镜头轻微向前推进\n画面：女子侧身立于碎石滩，面朝湖泊，双手交叠腰腹，衣摆微动；蓝绿湖水、对岸针叶林，水面星芒反光\n\n镜头 2 ｜ 2.4–5.8s（3.4s）转脸 · 轻抚毛饰\n@视频1  对应画面， @图片6 「人物三视图」节点输出的五宫格人物参考图 为人物， @图片2  为这一段场景。\n景别/机位：中近景，平视，镜头缓慢环绕推进\n画面：女子转头正对镜头，红唇、耳饰与红珠颈饰完整露出，右手抬起轻触发丝/衣领、再抚过衣身白毛饰，左手留腰侧，背景湖林虚化\n\n镜头 3 ｜ 5.8–8.6s（2.8s）树下静坐垂眸\n@视频1  对应画面， @图片6 「人物三视图」节点输出的五宫格人物参考图 为人物， @图片3  为这一段场景。\n景别/机位：近景，平视略俯，镜头轻微上移\n画面：女子坐下垂眸，衣摆纹样铺展，头顶绿叶在脸与衣物上投下斑驳光影，左手放腿上、右手搭身侧，湖水在身后\n\n镜头 4 ｜ 8.6–11.6s（3.0s）抬眼正视（面部大特写）\n@视频1  对应画面， @图片6 「人物三视图」节点输出的五宫格人物参考图 为人物， @图片4  为这一段场景。\n景别/机位：面部大特写，平视，极轻微移动对焦\n画面：红珠绿松石额饰、水滴银红耳坠、多层红珠项链清晰；女子由垂眸抬眼直视镜头，表情平静柔和，背景完全虚化为蓝绿光斑\n\n镜头 5 ｜ 11.6–15.0s（3.4s）广角全景回望（收尾）\n@视频1  对应画面， @图片6 「人物三视图」节点输出的五宫格人物参考图 为人物， @图片5  为这一段场景。\n景别/机位：全景，低角度仰拍，固定机位\n画面：蓝天白云入镜，太阳在左上角形成星芒，对面山坡森林覆盖；女子立于碎石滩，由侧对湖转头回望镜头，双手交叠身前，衣摆垂落\n\n\n约束： @图片6 「人物三视图」节点输出的五宫格人物参考图 中的发色/服装颜色/伞样式为固定值不可修改；禁止出现与 @图片6 「人物三视图」节点输出的五宫格人物参考图 不符的第二种人物形象。",
+          "quality": "standard",
           "refs": [
             {
               "from": "g6-7-i-lr9yI3xWBq",
@@ -293,9 +296,17 @@
               "label": "背景音乐"
             }
           ],
+          "resolution": "720p",
           "results": [],
+          "selected": false,
           "status": "idle",
-          "selected": false
+          "stylePreset": "古风奇幻",
+          "type": "video",
+          "videoMode": "omni",
+          "width": 210,
+          "x": 800,
+          "y": 160,
+          "error": ""
         }
       ],
       "seq": 12,
@@ -306,5 +317,27 @@
       }
     }
   },
-  "stage": "online"
+  "stage": "online",
+  "app_config": {
+    "enabled": true,
+    "app_id": "app-a8293ceb",
+    "description": "",
+    "inputs": [
+      {
+        "key": "loadimage",
+        "label": "人脸参考",
+        "node_id": "g6-3-i-LWPBoO8LOw",
+        "kind": "image",
+        "required": true
+      }
+    ],
+    "outputs": [
+      {
+        "key": "save_video",
+        "label": "视频成片",
+        "node_id": "g6-2-v-cUnmraF4N4",
+        "kind": "video"
+      }
+    ]
+  }
 }
