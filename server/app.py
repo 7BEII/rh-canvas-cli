@@ -22,6 +22,7 @@ from .zip_bundle import (
     export_project_zip,
     export_selected_projects_zip,
     export_workspace_zip,
+    import_canvas_zip,
     import_project_zip,
     import_workspace_zip,
 )
@@ -292,12 +293,11 @@ def create_app() -> Flask:
         if file is None:
             return _json_error("缺少上传文件字段 file", 400)
         try:
-            res = import_workspace_zip(
+            res = import_canvas_zip(
                 file.stream,
                 filename=str(file.filename or "canvas.zip"),
                 projects=projects,
                 assets=assets,
-                settings=settings,
             )
             return jsonify(res), 201
         except (ValueError, SnapshotTooLargeError) as exc:

@@ -299,6 +299,158 @@ def import_project_zip(
         }
 
 
+def import_canvas_zip(
+    file_stream: Any,
+    *,
+    filename: str,
+    projects: ProjectStore,
+    assets: AssetStore,
+) -> dict[str, Any]:
+    """Import exported canvas ZIP (single canvas.json or batch workspace.json) into test stage without touching settings or overwriting existing canvases."""
+    raw_bytes = file_stream.read()
+    mem = io.BytesIO(raw_bytes)
+    try:
+        zf = zipfile.ZipFile(mem, "r")
+    except zipfile.BadZipFile as exc:
+        raise ValueError("无效的 ZIP 压缩包文件") from exc
+
+    with zf:
+        infos = zf.infolist()
+        if len(infos) > MAX_ZIP_FILES * 4:
+            raise ValueError(f"ZIP 内文件数量超过限制（最多 {MAX_ZIP_FILES * 4} 个）")
+        total_bytes = sum(max(0, info.file_size) for info in infos)
+        if total_bytes > MAX_ZIP_TOTAL_BYTES * 2:
+            raise ValueError("ZIP 解压体积超过 2GB 限制")
+
+        members: dict[str, zipfile.ZipInfo] = {}
+        for info in infos:
+            norm = _normalize_zip_member(info.filename)
+            if norm:
+                members[norm] = info
+
+        # Find workspace.json (root or nested)
+        ws_key = "workspace.json" if "workspace.json" in members else None
+        if not ws_key:
+            ws_candidates = sorted(
+                (k for k in members if Path(k).name.lower() == "workspace.json"),
+                key=lambda k: (k.count("/"), len(k)),
+            )
+            if ws_candidates:
+                ws_key = ws_candidates[0]
+
+        if not ws_key:
+            # Single-canvas ZIP (canvas.json + assets/*)
+            return import_project_zip(
+                io.BytesIO(raw_bytes),
+                filename=filename,
+                projects=projects,
+                assets=assets,
+            )
+
+        try:
+            manifest = json.loads(zf.read(members[ws_key]).decode("utf-8"))
+        except Exception as exc:
+            raise ValueError(f"画布包清单 workspace.json 解析失败：{exc}") from exc
+
+        if not isinstance(manifest, dict) or not isinstance(manifest.get("projects"), list):
+            raise ValueError("ZIP 清单格式不兼容，缺少 projects 列表")
+
+        # Extract all media assets into data/assets/
+        extracted_by_arc: dict[str, dict[str, str]] = {}
+        extracted_by_basename: dict[str, dict[str, str]] = {}
+        for norm, info in members.items():
+            if norm == ws_key or info.file_size <= 0:
+                continue
+            orig_name = Path(norm).name
+            ext = Path(orig_name).suffix.lower() or ".bin"
+            safe_stem = re.sub(r"[^a-zA-Z0-9_\-\u4e00-\u9fff]+", "_", Path(orig_name).stem).strip("_") or "asset"
+            reuse_cand = assets.input_dir / orig_name
+            if reuse_cand.exists() and reuse_cand.is_file() and reuse_cand.stat().st_size == info.file_size:
+                stored_name = orig_name
+                target = reuse_cand
+            else:
+                stored_name = f"{safe_stem[:32]}-{uuid4().hex[:10]}{ext}"
+                target = assets.input_dir / stored_name
+                with zf.open(info, "r") as src, target.open("wb") as dst:
+                    while True:
+                        chunk = src.read(1024 * 256)
+                        if not chunk:
+                            break
+                        dst.write(chunk)
+            entry = {
+                "kind": kind_for_suffix(ext),
+                "url": f"/api/assets/input/{quote(stored_name)}",
+                "path": str(target),
+                "stored_name": stored_name,
+            }
+            extracted_by_arc[norm] = entry
+            extracted_by_basename.setdefault(orig_name, entry)
+
+        created_records: list[dict[str, Any]] = []
+        for item in manifest.get("projects") or []:
+            if not isinstance(item, dict):
+                continue
+            snapshot = item.get("snapshot")
+            if not isinstance(snapshot, dict):
+                continue
+            cards = (snapshot.get("canvas") or {}).get("cards")
+            if isinstance(cards, list):
+                for card in cards:
+                    if not isinstance(card, dict):
+                        continue
+                    for field in ("results", "localMedia"):
+                        media_items = card.get(field)
+                        if not isinstance(media_items, list):
+                            continue
+                        for m in media_items:
+                            if not isinstance(m, dict):
+                                continue
+                            url = str(m.get("url") or "").strip()
+                            matched: dict[str, str] | None = None
+                            if url.startswith("zip://"):
+                                arc_key = url.removeprefix("zip://").replace("\\", "/").lstrip("/")
+                                matched = extracted_by_arc.get(arc_key) or extracted_by_basename.get(Path(arc_key).name)
+                            elif url.startswith(("/api/assets/input/", "/api/outputs/")):
+                                base = unquote(Path(url).name)
+                                matched = extracted_by_basename.get(base)
+                            if matched:
+                                m["url"] = matched["url"]
+                                m["path"] = matched["path"]
+
+            pname = str(item.get("name") or "导入画布")
+            pcover = str(item.get("cover") or "").strip()
+            if pcover.startswith("zip://"):
+                arc_key = pcover.removeprefix("zip://").replace("\\", "/").lstrip("/")
+                matched_cover = extracted_by_arc.get(arc_key) or extracted_by_basename.get(Path(arc_key).name)
+                if matched_cover:
+                    pcover = matched_cover["url"]
+            elif pcover.startswith(("/api/assets/input/", "/api/outputs/")):
+                matched_cover = extracted_by_basename.get(unquote(Path(pcover).name))
+                if matched_cover:
+                    pcover = matched_cover["url"]
+
+            # Always create into test stage so importing never overwrites online/existing canvases
+            rec = projects.create(name=pname, snapshot=snapshot, stage="test", cover=pcover)
+            created_records.append(rec)
+
+        if len(created_records) == 1:
+            return {
+                "success": True,
+                "mode": "project",
+                "project": created_records[0],
+                "projects": created_records,
+                "imported_projects": 1,
+                "imported_assets": len(extracted_by_arc),
+            }
+        return {
+            "success": True,
+            "mode": "batch",
+            "projects": created_records,
+            "imported_projects": len(created_records),
+            "imported_assets": len(extracted_by_arc),
+        }
+
+
 SECRET_SETTINGS_KEYS = (
     "ark_api_key",
     "volc_ak",

@@ -194,7 +194,7 @@ export const apiClient = {
     form.append('file', file);
     return request<{
       success: boolean;
-      mode?: 'project' | 'workspace';
+      mode?: 'project' | 'batch' | 'workspace';
       project?: ProjectRecord;
       projects?: ProjectRecord[];
       imported_projects?: number;

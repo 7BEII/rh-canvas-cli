@@ -3,17 +3,18 @@
   "id": "canvas-cc6789ead4664ccd8ee0badf3b08c0f8",
   "name": "LibTV 复刻 · Group 8 精简版",
   "created_at": "2026-11-24T15:03:52.574701+00:00",
-  "updated_at": "2026-11-25T10:27:06.746791+00:00",
+  "updated_at": "2026-11-26T03:20:38.093466+00:00",
   "node_count": 10,
   "snapshot": {
     "format": "rh-canvas",
     "version": 1,
-    "exportedAt": "2026-11-25T07:42:16.331Z",
+    "exportedAt": "2026-11-26T03:20:38.090Z",
     "schemaVersion": 1,
     "canvas": {
       "cards": [
         {
           "activeResultIndex": 0,
+          "error": "",
           "height": 92,
           "id": "g8-1-i-0oPpBFrKoR",
           "mediaKind": "image",
@@ -32,11 +33,11 @@
           "type": "source",
           "width": 156,
           "x": 60,
-          "y": 20,
-          "error": ""
+          "y": 20
         },
         {
           "activeResultIndex": 0,
+          "error": "",
           "height": 92,
           "id": "g8-2-i-fL1y91VrUO",
           "mediaKind": "image",
@@ -55,11 +56,11 @@
           "type": "source",
           "width": 156,
           "x": 236,
-          "y": 20,
-          "error": ""
+          "y": 20
         },
         {
           "activeResultIndex": 0,
+          "error": "",
           "height": 148,
           "id": "g8-4-i-UOfe8Yz3CP",
           "mediaKind": "image",
@@ -78,11 +79,11 @@
           "type": "source",
           "width": 148,
           "x": -259,
-          "y": -67,
-          "error": ""
+          "y": -67
         },
         {
           "activeResultIndex": 0,
+          "error": "",
           "height": 148,
           "id": "g8-5-i-iRKp0xoM2K",
           "mediaKind": "image",
@@ -101,11 +102,11 @@
           "type": "source",
           "width": 148,
           "x": 224,
-          "y": 142,
-          "error": ""
+          "y": 142
         },
         {
           "activeResultIndex": 0,
+          "error": "",
           "height": 148,
           "id": "g8-6-i-tYhwELLcAj",
           "mediaKind": "image",
@@ -124,11 +125,11 @@
           "type": "source",
           "width": 148,
           "x": -306,
-          "y": 141,
-          "error": ""
+          "y": 141
         },
         {
           "activeResultIndex": 0,
+          "error": "",
           "height": 148,
           "id": "g8-7-i-Po2asqorTi",
           "mediaKind": "image",
@@ -147,11 +148,11 @@
           "type": "source",
           "width": 148,
           "x": 403,
-          "y": 314,
-          "error": ""
+          "y": 314
         },
         {
           "activeResultIndex": 0,
+          "error": "",
           "height": 148,
           "id": "g8-8-v-rNDnSdyZJS",
           "mediaKind": "video",
@@ -169,12 +170,12 @@
           "status": "done",
           "type": "source",
           "width": 148,
-          "x": 60,
-          "y": 318,
-          "error": ""
+          "x": 69,
+          "y": 142
         },
         {
           "activeResultIndex": 0,
+          "error": "",
           "height": 100,
           "id": "g8-9-a-wWI7V0LkrU",
           "mediaKind": "audio",
@@ -193,11 +194,11 @@
           "type": "source",
           "width": 156,
           "x": 224,
-          "y": 318,
-          "error": ""
+          "y": 318
         },
         {
           "activeResultIndex": 0,
+          "error": "",
           "height": 198,
           "id": "g8-10-i-c7xlYBxm6b",
           "mediaKind": "image",
@@ -216,8 +217,7 @@
           "type": "source",
           "width": 148,
           "x": -102,
-          "y": 143,
-          "error": ""
+          "y": 143
         },
         {
           "activeResultIndex": 1,
@@ -289,8 +289,8 @@
       ],
       "seq": 12,
       "viewport": {
-        "x": 669.8163060377954,
-        "y": 324.27050681125536,
+        "x": 394.2607030104516,
+        "y": 310.93717856418505,
         "z": 1.17
       }
     }

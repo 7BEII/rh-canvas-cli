@@ -469,12 +469,87 @@ class ProjectStore:
             if current_stage == norm_target:
                 return record
             record["stage"] = norm_target
+            if norm_target == STAGE_ONLINE:
+                cfg = normalize_app_config(record.get("app_config"), record, strict=False)
+                # Ensure app_id does not collide with another online project
+                existing_ids = {
+                    str(p.get("app_config", {}).get("app_id") or "").lower()
+                    for p in self.list(stage=STAGE_ONLINE)
+                    if p.get("id") != project_id
+                }
+                if cfg["app_id"].lower() in existing_ids:
+                    cfg["app_id"] = default_app_id_for_project(project_id)
+                record["app_config"] = cfg
             record["updated_at"] = _now_iso()
             dst_path = self._path_for_stage(project_id, norm_target)
             self._atomic_write(dst_path, record)
             if src_path.exists() and src_path != dst_path:
                 src_path.unlink()
             return record
+
+    def update_app_config(self, project_id: str, raw_config: dict[str, Any]) -> dict[str, Any]:
+        with self._lock:
+            stage, path = self._locate(project_id)
+            record = self._read_record(path, stage=stage)
+            cfg = normalize_app_config(raw_config, record, strict=True)
+            # Check app_id uniqueness across online projects
+            target_id_lower = cfg["app_id"].lower()
+            for other_path in self.online_dir.glob("canvas-*.json"):
+                if other_path.stem == project_id:
+                    continue
+                try:
+                    other = self._read_record(other_path, stage=STAGE_ONLINE)
+                except ProjectCorruptError:
+                    continue
+                other_id = str((other.get("app_config") or {}).get("app_id") or "").strip().lower()
+                if other_id and other_id == target_id_lower:
+                    raise ValueError(f"AppID「{cfg['app_id']}」已被其他上线画布占用，请更换一个名称")
+            record["app_config"] = cfg
+            record["updated_at"] = _now_iso()
+            self._atomic_write(path, record)
+            return record
+
+    def get_by_app_id(self, app_id: str) -> dict[str, Any]:
+        target = str(app_id or "").strip()
+        if not target:
+            raise ValueError("缺少 app_id")
+        target_lower = target.lower()
+        with self._lock:
+            for path in self.online_dir.glob("canvas-*.json"):
+                try:
+                    record = self._read_record(path, stage=STAGE_ONLINE)
+                except ProjectCorruptError:
+                    continue
+                cfg = record.get("app_config") or {}
+                aid = str(cfg.get("app_id") or "").strip()
+                if aid.lower() == target_lower or str(record.get("id") or "").lower() == target_lower:
+                    return record
+        raise FileNotFoundError(f"未找到上线应用：{target}")
+
+    def list_online_apps(self) -> list[dict[str, Any]]:
+        with self._lock:
+            apps: list[dict[str, Any]] = []
+            for path in self.online_dir.glob("canvas-*.json"):
+                try:
+                    record = self._read_record(path, stage=STAGE_ONLINE)
+                except ProjectCorruptError:
+                    continue
+                cfg = normalize_app_config(record.get("app_config"), record, strict=False)
+                apps.append(
+                    {
+                        "app_id": cfg["app_id"],
+                        "enabled": cfg["enabled"],
+                        "project_id": record["id"],
+                        "name": record.get("name") or DEFAULT_PROJECT_NAME,
+                        "description": cfg.get("description") or "",
+                        "thumbnail": str(record.get("cover") or "").strip() or _extract_thumbnail(record.get("snapshot") or {}),
+                        "inputs": cfg["inputs"],
+                        "outputs": cfg["outputs"],
+                        "updated_at": record.get("updated_at") or "",
+                    }
+                )
+            apps.sort(key=lambda item: item.get("updated_at") or "", reverse=True)
+            return apps
 
     def duplicate(self, project_id: str) -> dict[str, Any]:
         with self._lock:

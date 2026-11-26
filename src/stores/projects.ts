@@ -114,13 +114,13 @@ export const useProjectsStore = defineStore('projects', () => {
   }
 
   async function importProjectZip(file: File) {
+    const res = await apiClient.importProjectZip(file);
+    await refreshList();
+    return res;
+  }
+
+  async function importWorkspaceZip(file: File) {
     const res = await apiClient.importWorkspaceZip(file);
-    if (res.mode === 'project' && res.project) {
-      activeProjectId.value = res.project.id;
-      activeProjectName.value = res.project.name;
-      activeProjectStage.value = res.project.stage === 'online' ? 'online' : 'test';
-      lastSavedAt.value = res.project.updated_at;
-    }
     await refreshList();
     return res;
   }
@@ -225,6 +225,7 @@ export const useProjectsStore = defineStore('projects', () => {
     createBlankProject,
     importProjectJson,
     importProjectZip,
+    importWorkspaceZip,
     saveActive,
     renameProject,
     updateProjectCover,

@@ -20,7 +20,6 @@ import {
   ImagePlus,
   RotateCcw,
   CheckSquare,
-  Square,
 } from 'lucide-vue-next';
 import { apiClient } from '@/api/client';
 import { useProjectsStore } from '@/stores/projects';

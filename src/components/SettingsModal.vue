@@ -91,7 +91,7 @@ async function handleImportMigration(event: Event) {
   migrating.value = true;
   try {
     if (file.name.toLowerCase().endsWith('.zip') || file.type.includes('zip')) {
-      const res = await projects.importProjectZip(file);
+      const res = await projects.importWorkspaceZip(file);
       await loadFromBackend();
       if (res.mode === 'workspace') {
         const total = (res.imported_projects || 0) + (res.updated_projects || 0);
