@@ -1107,19 +1107,72 @@ class WorkflowRunner:
                     )
 
             elif node_type == "transition":
-                model = str(card.get("model") or "h3-first-last")
-                if not allow_mock and not config.get("runninghub_api_key"):
-                    raise ValueError("未配置 RunningHub API Key，无法发起云端视频生成")
-                provider = f"preview:{model}"
-                preview = self._render_preview_image(
-                    f"{node_name} (Transition Preview)",
-                    combined_prompt or "First-last frame transition preview",
-                    str(card.get("aspect") or "16:9"),
-                    model,
-                )
-                preview["label"] = f"{model} · 转场预览帧"
-                results = [preview]
-                message = "已完成转场占位预览（配置 RunningHub API Key 后可接入云端视频）"
+                model = str(card.get("model") or "rh:magi-2-flf")
+                rh_key = resolve_rh_key(config)
+                if rh_key:
+                    slots = self._collect_omni_slots(card, upstream)
+                    img_slots = [s for s in slots if s.get("kind") == "image"]
+                    if not img_slots:
+                        raise ValueError("首尾帧转场节点请至少连接 1 张首帧图片（最多 2 张首尾帧）")
+                    tr_mode = "firstLastFrame" if len(img_slots) >= 2 else "firstFrame"
+                    tr_duration = int(card.get("duration") or 5)
+                    tr_resolution = str(card.get("resolution") or ("1080p" if "magi" in model.lower() else "720p"))
+                    tr_aspect = str(card.get("aspect") or "自适应")
+                    tr_audio = card.get("generateAudio", True) is not False
+
+                    rh = RunningHubVideoClient(api_key=rh_key, base_url=resolve_rh_base_url(config))
+                    cancel_ev = threading.Event()
+                    run_state: dict[str, Any] = {"cancel_event": cancel_ev, "ark_task_id": ""}
+                    with self._lock:
+                        self._active_runs[node_id] = run_state
+                    try:
+                        out = rh.generate_video(
+                            model=model,
+                            prompt=combined_prompt,
+                            mode=tr_mode,
+                            resolution=tr_resolution,
+                            duration=tr_duration,
+                            aspect=tr_aspect,
+                            generate_audio=tr_audio,
+                            slots=img_slots[:2],
+                            output_dir=self.settings.output_dir(),
+                            seed=card.get("seed"),
+                            cancel_event=cancel_ev,
+                        )
+                    finally:
+                        with self._lock:
+                            if self._active_runs.get(node_id) is run_state:
+                                self._active_runs.pop(node_id, None)
+
+                    eff_res = str(out.get("resolution") or tr_resolution)
+                    eff_dur = int(out.get("duration") or tr_duration)
+                    provider = f"runninghub:{out['model']}"
+                    usage = out.get("usage") or {}
+                    cost_val = usage.get("thirdPartyConsumeMoney") or usage.get("consumeMoney")
+                    cost_note = f" · 实扣 ¥{cost_val}" if cost_val else ""
+                    results = [
+                        {
+                            "kind": "video",
+                            "label": f"{out['model']} · {eff_res} {eff_dur}s",
+                            "name": out["filename"],
+                            "path": str(out["path"]),
+                            "url": self._output_url(out["path"]),
+                        }
+                    ]
+                    message = f"RunningHub 图生/首尾帧生成成功（{out['model']} · 任务 {out['task_id']}{cost_note}）"
+                else:
+                    if not allow_mock:
+                        raise ValueError("未配置 RunningHub API Key，无法发起云端视频生成")
+                    provider = f"preview:{model}"
+                    preview = self._render_preview_image(
+                        f"{node_name} (Transition Preview)",
+                        combined_prompt or "First-last frame transition preview",
+                        str(card.get("aspect") or "16:9"),
+                        model,
+                    )
+                    preview["label"] = f"{model} · 转场预览帧"
+                    results = [preview]
+                    message = "已完成转场占位预览（配置 RunningHub API Key 后可接入云端视频）"
 
             elif node_type in {"audio", "ttsIndex"}:
                 model = str(card.get("model") or "h3-audio")

@@ -337,9 +337,14 @@ class RunningHubVideoClient:
         dur_str = str(dur_int)
         ratio = "adaptive" if aspect in ("", "自适应", "adaptive") else (aspect if aspect in VALID_RATIOS else "adaptive")
 
-        max_imgs = 10 if is_magi2 else (sd_spec["max_images"] if sd_spec is not None else 9)
-        max_vids = 5 if is_magi2 else (sd_spec["max_videos"] if sd_spec is not None else 3)
-        max_auds = 5 if is_magi2 else (sd_spec["max_audios"] if sd_spec is not None else 3)
+        is_i2v_mode = mode in {"firstFrame", "firstLastFrame"}
+        max_imgs = (
+            (1 if mode == "firstFrame" else 2)
+            if is_i2v_mode
+            else (10 if is_magi2 else (sd_spec["max_images"] if sd_spec is not None else 9))
+        )
+        max_vids = 0 if is_i2v_mode else (5 if is_magi2 else (sd_spec["max_videos"] if sd_spec is not None else 3))
+        max_auds = 0 if is_i2v_mode else (5 if is_magi2 else (sd_spec["max_audios"] if sd_spec is not None else 3))
 
         img_urls: list[str] = []
         vid_urls: list[str] = []
@@ -349,22 +354,32 @@ class RunningHubVideoClient:
             for s in slots:
                 if cancel_event is not None and cancel_event.is_set():
                     raise InterruptedError("已中止 RunningHub 视频生成")
+                k = str(s.get("kind") or "image")
+                if k == "image" and len(img_urls) >= max_imgs:
+                    continue
+                if k == "video" and len(vid_urls) >= max_vids:
+                    continue
+                if k == "audio" and len(aud_urls) >= max_auds:
+                    continue
+                if k not in ("image", "video", "audio"):
+                    continue
                 u = self._slot_to_rh_url(s)
                 if not u:
                     continue
-                k = str(s.get("kind") or "image")
-                if k == "image" and len(img_urls) < max_imgs:
+                if k == "image":
                     img_urls.append(u)
-                elif k == "video" and len(vid_urls) < max_vids:
+                elif k == "video":
                     vid_urls.append(u)
-                elif k == "audio" and len(aud_urls) < max_auds:
+                elif k == "audio":
                     aud_urls.append(u)
 
         if is_magi2:
             clean_prompt = prompt.strip()[:15000]
             magi_ratio = aspect if aspect in MAGI2_VALID_RATIOS else None
+            if is_i2v_mode and not img_urls:
+                raise ValueError("MAGI-2 图生视频（首帧 / 首尾帧模式）请至少连接或上传一张首帧图片")
             use_t2v = mode == "t2v" or (not img_urls and not vid_urls and not aud_urls)
-            use_i2v = (not use_t2v) and mode in {"firstFrame", "firstLastFrame"} and bool(img_urls)
+            use_i2v = (not use_t2v) and is_i2v_mode and bool(img_urls)
 
             if use_t2v:
                 api_url = f"{self.base_url}{MAGI2_T2V_PATH}"
@@ -520,50 +535,78 @@ class RunningHubVideoClient:
                 if not use_i2v:
                     body["webSearch"] = False
 
-        resp = requests.post(api_url, headers=self._headers(json_content=True), json=body, timeout=180)
-        try:
-            payload = resp.json()
-        except Exception as exc:
-            raise RuntimeError(f"RunningHub 提交任务响应异常 (HTTP {resp.status_code}): {resp.text[:240]}") from exc
-        result = self._unwrap(payload)
-        if not resp.ok or payload.get("code") not in (0, 200, None) or result.get("errorCode") or result.get("errorMessage"):
-            msg = result.get("errorMessage") or result.get("failedReason") or payload.get("message") or payload.get("msg") or resp.text[:240]
-            code = result.get("errorCode") or payload.get("code") or ""
-            raise RuntimeError(f"RunningHub 提交失败{f' [{code}]' if code else ''}：{msg}")
-
-        task_id = str(result.get("taskId") or "").strip()
-        if on_task_created and task_id:
-            on_task_created(task_id)
-
-        status = str(result.get("status") or "").upper()
+        max_upstream_attempts = 3
         deadline = time.monotonic() + timeout_seconds
-        while status not in SUCCESS_STATUSES:
-            if status in FAILED_STATUSES:
-                msg = result.get("errorMessage") or result.get("failedReason") or f"状态 {status}"
-                raise RuntimeError(f"RunningHub 视频生成失败：{msg}")
-            if status and status not in PENDING_STATUSES:
-                raise RuntimeError(f"RunningHub 返回异常状态：{status}")
-            if not task_id:
-                raise RuntimeError(f"RunningHub 未返回 taskId：{payload}")
-            if time.monotonic() >= deadline:
-                raise TimeoutError(f"RunningHub 视频任务超时 (taskId: {task_id})")
+        task_id = ""
+        result: dict[str, Any] = {}
 
-            slept = 0.0
-            while slept < poll_interval:
-                if cancel_event is not None and cancel_event.is_set():
-                    # RunningHub cloud tasks cannot be cancelled; keep downloading in background so paid video isn't lost
-                    threading.Thread(
-                        target=self._finish_in_background,
-                        args=(task_id, output_dir, poll_interval, max(60.0, deadline - time.monotonic())),
-                        daemon=True,
-                    ).start()
-                    raise InterruptedError(f"已转入后台继续接收（RunningHub 任务 {task_id} 完成后将自动存入「历史视频」）")
-                step = min(0.5, poll_interval - slept)
-                time.sleep(step)
-                slept += step
+        for attempt in range(1, max_upstream_attempts + 1):
+            if cancel_event is not None and cancel_event.is_set():
+                raise InterruptedError("已中止 RunningHub 视频生成")
 
-            result = self._query_task(task_id)
+            resp = requests.post(api_url, headers=self._headers(json_content=True), json=body, timeout=180)
+            try:
+                payload = resp.json()
+            except Exception as exc:
+                raise RuntimeError(f"RunningHub 提交任务响应异常 (HTTP {resp.status_code}): {resp.text[:240]}") from exc
+            result = self._unwrap(payload)
+            if not resp.ok or payload.get("code") not in (0, 200, None) or result.get("errorCode") or result.get("errorMessage"):
+                msg = result.get("errorMessage") or result.get("failedReason") or payload.get("message") or payload.get("msg") or resp.text[:240]
+                code = result.get("errorCode") or payload.get("code") or ""
+                raise RuntimeError(f"RunningHub 提交失败{f' [{code}]' if code else ''}：{msg}")
+
+            task_id = str(result.get("taskId") or "").strip()
+            if on_task_created and task_id:
+                on_task_created(task_id)
+
             status = str(result.get("status") or "").upper()
+            retry_upstream_1012 = False
+            while status not in SUCCESS_STATUSES:
+                if status in FAILED_STATUSES:
+                    msg = result.get("errorMessage") or result.get("failedReason") or f"状态 {status}"
+                    code = str(result.get("errorCode") or "").strip()
+                    usage = result.get("usage") or {}
+                    charged = usage.get("consumeMoney") or usage.get("thirdPartyConsumeMoney")
+                    if code == "1012" and not charged and attempt < max_upstream_attempts and time.monotonic() + 6.0 < deadline:
+                        retry_upstream_1012 = True
+                        break
+                    code_part = f" [{code}]" if code else ""
+                    tid_part = f" (taskId: {task_id})" if task_id else ""
+                    retry_hint = f"（已自动重试 {attempt - 1} 次仍为上游异常，未扣费）" if (code == "1012" and attempt > 1) else ""
+                    raise RuntimeError(f"RunningHub 视频生成失败{code_part}：{msg}{retry_hint}{tid_part}")
+                if status and status not in PENDING_STATUSES:
+                    raise RuntimeError(f"RunningHub 返回异常状态：{status}")
+                if not task_id:
+                    raise RuntimeError(f"RunningHub 未返回 taskId：{payload}")
+                if time.monotonic() >= deadline:
+                    raise TimeoutError(f"RunningHub 视频任务超时 (taskId: {task_id})")
+
+                slept = 0.0
+                while slept < poll_interval:
+                    if cancel_event is not None and cancel_event.is_set():
+                        # RunningHub cloud tasks cannot be cancelled; keep downloading in background so paid video isn't lost
+                        threading.Thread(
+                            target=self._finish_in_background,
+                            args=(task_id, output_dir, poll_interval, max(60.0, deadline - time.monotonic())),
+                            daemon=True,
+                        ).start()
+                        raise InterruptedError(f"已转入后台继续接收（RunningHub 任务 {task_id} 完成后将自动存入「历史视频」）")
+                    step = min(0.5, poll_interval - slept)
+                    time.sleep(step)
+                    slept += step
+
+                result = self._query_task(task_id)
+                status = str(result.get("status") or "").upper()
+
+            if not retry_upstream_1012:
+                break
+
+            backoff = 0.0
+            while backoff < 3.0:
+                if cancel_event is not None and cancel_event.is_set():
+                    raise InterruptedError("已中止 RunningHub 视频生成")
+                time.sleep(0.5)
+                backoff += 0.5
 
         items = result.get("results") or []
         video_url = ""

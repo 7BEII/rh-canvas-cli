@@ -155,10 +155,11 @@ export const NODE_DEFS: Record<NodeType, NodeDefinition> = {
     ],
     outputs: [{ kind: 'video', label: '过渡视频' }],
     defaultWidth: 290,
-    defaultModel: 'h3-first-last',
+    defaultModel: 'rh:magi-2-flf',
     models: [
-      { id: 'h3-first-last', label: 'H3 首尾帧转场' },
-      { id: 'runninghub-wan-flf', label: 'Wan 首尾帧' },
+      { id: 'rh:magi-2-flf', label: 'MAGI-2 图生 / 首尾帧', provider: 'runninghub' },
+      { id: 'h3-first-last', label: 'H3 首尾帧转场', provider: 'runninghub' },
+      { id: 'runninghub-wan-flf', label: 'Wan 首尾帧', provider: 'runninghub' },
     ],
   },
   audio: {

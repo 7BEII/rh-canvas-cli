@@ -623,7 +623,19 @@ function onVideoControlsPointerDown(event: PointerEvent) {
         <button type="button" class="node-stop-btn" @click="canvas.cancelNode(card.id)">停止生成</button>
       </div>
       <div v-if="activeResult && (activeResult.url || activeResult.dataUrl)" class="generic-preview">
-        <img :src="activeResult.url || activeResult.dataUrl" :alt="card.name" class="cover-media" draggable="false" />
+        <video
+          v-if="activeResult.kind === 'video' && activeResult.url && /\.(mp4|mov|webm|mkv)(\?|$)/i.test(activeResult.url)"
+          :src="activeResult.url"
+          controls
+          autoplay
+          loop
+          muted
+          playsinline
+          draggable="false"
+          class="cover-media"
+          @pointerdown.stop
+        />
+        <img v-else :src="activeResult.url || activeResult.dataUrl" :alt="card.name" class="cover-media" draggable="false" />
       </div>
       <div class="generic-body">
         <div v-if="def.models && def.models.length" class="generic-controls-wrap" @pointerdown.stop>
@@ -669,11 +681,11 @@ function onVideoControlsPointerDown(event: PointerEvent) {
           </div>
         </div>
         <textarea
-          v-if="card.type === 'prompt' || card.type === 'image' || card.type === 'storyboard'"
+          v-if="card.type === 'prompt' || card.type === 'image' || card.type === 'storyboard' || card.type === 'transition'"
           v-model="card.prompt"
           class="generic-textarea"
           rows="3"
-          placeholder="输入提示词…"
+          :placeholder="card.type === 'transition' ? '可选输入运镜与过渡描述…' : '输入提示词…'"
           @pointerdown.stop
           @change="canvas.scheduleSave()"
         />

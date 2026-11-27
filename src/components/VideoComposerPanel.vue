@@ -261,6 +261,40 @@ const refItems = computed<ResolvedRefItem[]>(() => {
   return [...images, ...videos, ...audios];
 });
 
+const visibleRefItems = computed(() => {
+  if (currentMode.value === 't2v') return [];
+  if (currentMode.value === 'firstFrame') {
+    return refItems.value
+      .filter((r) => r.kind === 'image')
+      .slice(0, 1)
+      .map((r) => ({ ...r, displayLabel: '首帧' }));
+  }
+  if (currentMode.value === 'firstLastFrame') {
+    return refItems.value
+      .filter((r) => r.kind === 'image')
+      .slice(0, 2)
+      .map((r, idx) => ({ ...r, displayLabel: idx === 0 ? '首帧' : '尾帧' }));
+  }
+  return refItems.value.map((r) => ({
+    ...r,
+    displayLabel: r.kind === 'audio' ? `♪${r.label}` : r.label,
+  }));
+});
+
+const editorPlaceholder = computed(() => {
+  if (currentMode.value === 't2v') {
+    return isMagi2.value
+      ? '输入画面描述与分镜脚本（支持 1~15000 字），MAGI-2 将生成 1080p 原生带声视频…'
+      : '输入你想要生成的视频画面描述与运镜…';
+  }
+  if (currentMode.value === 'firstFrame' || currentMode.value === 'firstLastFrame') {
+    return isMagi2.value
+      ? '可选输入动作与运镜描述，留空则仅按首帧 / 首尾帧画面自然生成（1080p 带声）…'
+      : '描述首帧到尾帧之间的动作过渡与镜头运动…';
+  }
+  return '描述你想要生成的内容，输入 @ 可快速引用已连接的图片、视频或音频…';
+});
+
 const refLookup = computed(() => {
   const map = new Map<string, ResolvedRefItem>();
   for (const item of refItems.value) {
@@ -744,7 +778,7 @@ function handleSubmit() {
       <!-- Reference Asset Strip (Omni / FirstFrame / FirstLastFrame) -->
       <div v-if="currentMode !== 't2v'" class="ref-strip">
         <div
-          v-for="item in refItems"
+          v-for="item in visibleRefItems"
           :key="item.key"
           class="ref-chip"
           :class="item.kind"
@@ -776,7 +810,7 @@ function handleSubmit() {
             <div v-else class="chip-fallback"><ImageIcon :size="15" /></div>
           </template>
 
-          <span class="chip-badge">{{ item.kind === 'audio' ? `♪${item.label}` : item.label }}</span>
+          <span class="chip-badge">{{ item.displayLabel }}</span>
           <button
             type="button"
             class="chip-remove"
@@ -790,7 +824,13 @@ function handleSubmit() {
         <button
           type="button"
           class="add-ref-btn"
-          title="从画布选择或本地上传参考素材"
+          :title="
+            currentMode === 'firstFrame'
+              ? '选择或上传首帧图片'
+              : currentMode === 'firstLastFrame'
+                ? '选择或上传首帧 / 尾帧图片'
+                : '从画布选择或本地上传参考素材'
+          "
           @click="pickerOpen = true"
         >
           <Plus :size="17" />
@@ -804,7 +844,7 @@ function handleSubmit() {
           class="mention-editor"
           contenteditable="true"
           spellcheck="false"
-          data-placeholder="描述你想要生成的内容，输入 @ 可快速引用已连接的图片、视频或音频…"
+          :data-placeholder="editorPlaceholder"
           @input="onEditorInput"
           @keydown="onEditorKeydown"
           @blur="onEditorBlur"
