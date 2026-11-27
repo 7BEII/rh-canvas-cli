@@ -322,5 +322,17 @@
     "created_at": "2026-11-27T11:21:52.978079+00:00",
     "finished_at": "2026-11-27T11:22:16.297389+00:00",
     "duration_ms": 23319
+  },
+  {
+    "id": "task-e175853047",
+    "node_id": "g5-2-v-hfhGmGRxUV",
+    "node_name": "视频成片",
+    "node_type": "video",
+    "status": "done",
+    "message": "RunningHub 生成成功（sand-ai/magi-2 (RunningHub) · 任务 2126311207215697921 · 实扣 ¥9.9）",
+    "provider": "runninghub:sand-ai/magi-2 (RunningHub)",
+    "created_at": "2026-11-27T13:44:29.535133+00:00",
+    "finished_at": "2026-11-27T13:51:06.857352+00:00",
+    "duration_ms": 397315
   }
 ]
