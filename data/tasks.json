@@ -298,5 +298,29 @@
     "created_at": "2026-11-27T10:37:26.061717+00:00",
     "finished_at": "2026-11-27T10:37:34.699999+00:00",
     "duration_ms": 8637
+  },
+  {
+    "id": "task-18759825ab",
+    "node_id": "g5-2-v-hfhGmGRxUV",
+    "node_name": "视频成片",
+    "node_type": "video",
+    "status": "error",
+    "message": "RunningHub 视频生成失败 [1012]：Model response exception, please contact support or retry later | 模型响应异常，请稍后重试（已自动重试 2 次仍为上游异常，未扣费） (taskId: 2126275296868311042)",
+    "provider": "local",
+    "created_at": "2026-11-27T11:21:31.208845+00:00",
+    "finished_at": "2026-11-27T11:21:52.952214+00:00",
+    "duration_ms": 21743
+  },
+  {
+    "id": "task-4509f83716",
+    "node_id": "g5-2-v-hfhGmGRxUV",
+    "node_name": "视频成片",
+    "node_type": "video",
+    "status": "error",
+    "message": "RunningHub 视频生成失败 [1012]：Model response exception, please contact support or retry later | 模型响应异常，请稍后重试（已自动重试 2 次仍为上游异常，未扣费） (taskId: 2126275395031863298)",
+    "provider": "local",
+    "created_at": "2026-11-27T11:21:52.978079+00:00",
+    "finished_at": "2026-11-27T11:22:16.297389+00:00",
+    "duration_ms": 23319
   }
 ]
