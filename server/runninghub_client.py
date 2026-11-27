@@ -22,6 +22,10 @@ H3_I2V_PATH = "/openapi/v2/minimax/hailuo-h3/image-to-video"
 H3_MULTIMODAL_PATH = "/openapi/v2/minimax/hailuo-h3/multimodal-to-video"
 WAN3_T2V_PATH = "/openapi/v2/alibaba/wan-3.0/text-to-video"
 WAN3_I2V_PATH = "/openapi/v2/alibaba/wan-3.0/image-to-video"
+MAGI2_T2V_PATH = "/openapi/v2/sand-ai/magi-2/text-to-video"
+MAGI2_I2V_PATH = "/openapi/v2/sand-ai/magi-2/image-to-video"
+MAGI2_R2V_PATH = "/openapi/v2/sand-ai/magi-2/reference-to-video"
+MAGI2_VALID_RATIOS = {"21:9", "16:9", "4:3", "1:1", "3:4", "9:16"}
 
 SEEDANCE_MODEL_SPECS: dict[str, dict[str, Any]] = {
     "seedance-2.5": {
@@ -113,6 +117,13 @@ FAILED_STATUSES = {"FAILED", "FAILURE", "ERROR", "CANCELLED", "CANCELED"}
 VALID_RATIOS = {"adaptive", "16:9", "4:3", "1:1", "3:4", "9:16", "21:9"}
 
 
+def is_runninghub_model(model: str) -> bool:
+    raw = str(model or "").strip().lower()
+    if raw.startswith(("rh:", "runninghub:")):
+        return True
+    return raw in {"wan-3.0", "hailuo-h3", "seedance-2.0-mini", "magi-2", "magi2"}
+
+
 def resolve_rh_key(config: dict[str, Any]) -> str:
     return str(config.get("runninghub_api_key") or os.environ.get("RUNNINGHUB_API_KEY") or "").strip()
 
@@ -123,7 +134,7 @@ def resolve_rh_base_url(config: dict[str, Any]) -> str:
 
 
 class RunningHubVideoClient:
-    """RunningHub OpenAPI v2 client for Seedance 2.0/2.5 series, Alibaba Wan 3.0 & Hailuo H3."""
+    """RunningHub OpenAPI v2 client for MAGI-2, Seedance 2.0/2.5 series, Alibaba Wan 3.0 & Hailuo H3."""
 
     def __init__(self, api_key: str, base_url: str = DEFAULT_RH_BASE) -> None:
         self.api_key = api_key.strip()
@@ -301,50 +312,104 @@ class RunningHubVideoClient:
         generate_audio: bool,
         slots: list[dict[str, Any]],
         output_dir: Path,
+        seed: int | None = None,
         poll_interval: float = 3.0,
         timeout_seconds: float = 900.0,
         cancel_event: threading.Event | None = None,
         on_task_created: Callable[[str], None] | None = None,
     ) -> dict[str, Any]:
         m_low = (model or "").lower()
-        is_wan3 = "wan-3" in m_low or "wan3" in m_low
-        is_h3 = "h3" in m_low or "hailuo" in m_low
-        sd_spec = None if (is_wan3 or is_h3) else resolve_seedance_spec(model)
+        is_magi2 = "magi-2" in m_low or "magi2" in m_low
+        is_wan3 = (not is_magi2) and ("wan-3" in m_low or "wan3" in m_low)
+        is_h3 = (not is_magi2) and ("h3" in m_low or "hailuo" in m_low)
+        sd_spec = None if (is_magi2 or is_wan3 or is_h3) else resolve_seedance_spec(model)
 
         res_clean = str(resolution or "720p").strip().lower()
-        if res_clean not in {"480p", "720p", "1080p"}:
+        if is_magi2:
+            res_clean = "1080p"
+        elif res_clean not in {"480p", "720p", "1080p"}:
             res_clean = "720p"
         if sd_spec is not None and res_clean not in sd_spec["resolutions"]:
             res_clean = "720p"
 
-        max_dur = sd_spec["max_duration"] if sd_spec is not None else 15
+        max_dur = 30 if is_magi2 else (sd_spec["max_duration"] if sd_spec is not None else 15)
         dur_int = max(4, min(max_dur, int(duration or 5)))
         dur_str = str(dur_int)
         ratio = "adaptive" if aspect in ("", "自适应", "adaptive") else (aspect if aspect in VALID_RATIOS else "adaptive")
 
-        max_imgs = sd_spec["max_images"] if sd_spec is not None else 9
-        max_vids = sd_spec["max_videos"] if sd_spec is not None else 3
-        max_auds = sd_spec["max_audios"] if sd_spec is not None else 3
+        max_imgs = 10 if is_magi2 else (sd_spec["max_images"] if sd_spec is not None else 9)
+        max_vids = 5 if is_magi2 else (sd_spec["max_videos"] if sd_spec is not None else 3)
+        max_auds = 5 if is_magi2 else (sd_spec["max_audios"] if sd_spec is not None else 3)
 
         img_urls: list[str] = []
         vid_urls: list[str] = []
         aud_urls: list[str] = []
 
-        for s in slots:
-            if cancel_event is not None and cancel_event.is_set():
-                raise InterruptedError("已中止 RunningHub 视频生成")
-            u = self._slot_to_rh_url(s)
-            if not u:
-                continue
-            k = str(s.get("kind") or "image")
-            if k == "image" and len(img_urls) < max_imgs:
-                img_urls.append(u)
-            elif k == "video" and len(vid_urls) < max_vids:
-                vid_urls.append(u)
-            elif k == "audio" and len(aud_urls) < max_auds:
-                aud_urls.append(u)
+        if mode != "t2v":
+            for s in slots:
+                if cancel_event is not None and cancel_event.is_set():
+                    raise InterruptedError("已中止 RunningHub 视频生成")
+                u = self._slot_to_rh_url(s)
+                if not u:
+                    continue
+                k = str(s.get("kind") or "image")
+                if k == "image" and len(img_urls) < max_imgs:
+                    img_urls.append(u)
+                elif k == "video" and len(vid_urls) < max_vids:
+                    vid_urls.append(u)
+                elif k == "audio" and len(aud_urls) < max_auds:
+                    aud_urls.append(u)
 
-        if is_wan3:
+        if is_magi2:
+            clean_prompt = prompt.strip()[:15000]
+            magi_ratio = aspect if aspect in MAGI2_VALID_RATIOS else None
+            use_t2v = mode == "t2v" or (not img_urls and not vid_urls and not aud_urls)
+            use_i2v = (not use_t2v) and mode in {"firstFrame", "firstLastFrame"} and bool(img_urls)
+
+            if use_t2v:
+                api_url = f"{self.base_url}{MAGI2_T2V_PATH}"
+                body: dict[str, Any] = {
+                    "prompt": clean_prompt or "生成一段高质量电影感视频",
+                    "duration": dur_int,
+                    "aspectRatio": magi_ratio or "16:9",
+                    "resolution": "1080p",
+                    "generateAudio": bool(generate_audio),
+                }
+            elif use_i2v:
+                api_url = f"{self.base_url}{MAGI2_I2V_PATH}"
+                body = {
+                    "imageUrl": img_urls[0],
+                    "duration": dur_int,
+                    "resolution": "1080p",
+                    "generateAudio": bool(generate_audio),
+                }
+                if mode == "firstLastFrame" and len(img_urls) >= 2:
+                    body["endImageUrl"] = img_urls[1]
+                if clean_prompt:
+                    body["prompt"] = clean_prompt
+                if magi_ratio:
+                    body["aspectRatio"] = magi_ratio
+            else:
+                api_url = f"{self.base_url}{MAGI2_R2V_PATH}"
+                body = {
+                    "prompt": clean_prompt or "结合参考素材生成一段高质量电影感视频",
+                    "imageUrls": img_urls,
+                    "videoUrls": vid_urls,
+                    "audioUrls": aud_urls,
+                    "duration": dur_int,
+                    "aspectRatio": magi_ratio or "16:9",
+                    "resolution": "1080p",
+                    "generateAudio": bool(generate_audio),
+                }
+
+            if seed is not None:
+                try:
+                    seed_int = int(seed)
+                    if 0 <= seed_int <= 4294967295:
+                        body["seed"] = seed_int
+                except (TypeError, ValueError):
+                    pass
+        elif is_wan3:
             wan_res = res_clean.upper()  # 480P / 720P / 1080P
             if mode == "t2v" or not img_urls:
                 api_url = f"{self.base_url}{WAN3_T2V_PATH}"
@@ -523,14 +588,20 @@ class RunningHubVideoClient:
         return {
             "task_id": task_id,
             "model": (
-                "alibaba/wan-3.0 (RunningHub)"
-                if is_wan3
+                "sand-ai/magi-2 (RunningHub)"
+                if is_magi2
                 else (
-                    "minimax/hailuo-h3 (RunningHub)"
-                    if is_h3
-                    else (sd_spec["display_name"] if sd_spec is not None else "seedance-2.0-mini (RunningHub)")
+                    "alibaba/wan-3.0 (RunningHub)"
+                    if is_wan3
+                    else (
+                        "minimax/hailuo-h3 (RunningHub)"
+                        if is_h3
+                        else (sd_spec["display_name"] if sd_spec is not None else "seedance-2.0-mini (RunningHub)")
+                    )
                 )
             ),
+            "resolution": res_clean,
+            "duration": dur_int,
             "remote_url": video_url,
             "path": target,
             "filename": filename,

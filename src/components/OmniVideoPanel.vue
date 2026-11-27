@@ -554,9 +554,12 @@ function closeMentionSoon() {
           </select>
           <span class="sep">/</span>
           <select v-model.number="currentDuration" class="inline-select" title="时长">
+            <option :value="4">4秒</option>
             <option :value="5">5秒</option>
             <option :value="10">10秒</option>
             <option :value="15">15秒</option>
+            <option :value="20">20秒</option>
+            <option :value="30">30秒</option>
           </select>
           <span class="sep">/</span>
           <select v-model="currentAspect" class="inline-select" title="画面比例">

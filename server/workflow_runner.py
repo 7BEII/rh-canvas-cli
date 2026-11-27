@@ -18,7 +18,7 @@ import requests
 from PIL import Image, ImageDraw, ImageFont
 
 from .ark_client import ArkClient, resolve_ark_base_url, resolve_ark_key
-from .runninghub_client import RunningHubVideoClient, resolve_rh_base_url, resolve_rh_key
+from .runninghub_client import RunningHubVideoClient, is_runninghub_model, resolve_rh_base_url, resolve_rh_key
 from .settings_store import SettingsStore
 from .tensor_client import TensorCanvasClient, is_tensor_model, resolve_tensor_base_url, resolve_tensor_key
 from .volc_assets import VolcAssetManager, resolve_volc_ak_sk
@@ -818,7 +818,15 @@ class WorkflowRunner:
                 tensor_key = resolve_tensor_key(config)
                 preferred = str(config.get("video_provider") or "tensor").strip().lower()
 
-                if preferred == "tensor":
+                if is_runninghub_model(model):
+                    if not rh_key:
+                        raise ValueError(f"模型 {model} 需要 RunningHub 渠道，请先在右上角「设置」中填写 RunningHub API Key")
+                    use_tensor, use_rh, use_ark = False, True, False
+                elif is_tensor_model(model):
+                    if not tensor_key:
+                        raise ValueError(f"模型 {model} 需要 Tensor (Forge) 渠道，请先在右上角「设置」中填写 Tensor Access Key")
+                    use_tensor, use_rh, use_ark = True, False, False
+                elif preferred == "tensor":
                     if not tensor_key:
                         raise ValueError("当前渠道为 Tensor (Forge)，请先在右上角「设置」中填写 Tensor Access Key")
                     use_tensor, use_rh, use_ark = True, False, False
@@ -923,6 +931,7 @@ class WorkflowRunner:
                             generate_audio=generate_audio,
                             slots=slots,
                             output_dir=self.settings.output_dir(),
+                            seed=card.get("seed"),
                             cancel_event=cancel_ev,
                         )
                     finally:
@@ -930,29 +939,34 @@ class WorkflowRunner:
                             if self._active_runs.get(node_id) is run_state:
                                 self._active_runs.pop(node_id, None)
 
+                    eff_res = str(out.get("resolution") or resolution)
+                    eff_dur = int(out.get("duration") or duration)
                     provider = f"runninghub:{out['model']}"
                     video_res = {
                         "kind": "video",
-                        "label": f"{out['model']} · {resolution} {duration}s",
+                        "label": f"{out['model']} · {eff_res} {eff_dur}s",
                         "name": out["filename"],
                         "path": str(out["path"]),
                         "url": self._output_url(out["path"]),
                     }
+                    manifest_payload: dict[str, Any] = {
+                        "provider": "runninghub",
+                        "task_id": out["task_id"],
+                        "model": out["model"],
+                        "mode": video_mode,
+                        "resolution": eff_res,
+                        "duration": eff_dur,
+                        "aspect": aspect,
+                        "generateAudio": generate_audio,
+                        "remote_url": out["remote_url"],
+                    }
+                    if "magi-2" not in out["model"].lower():
+                        manifest_payload["realPersonMode"] = True
                     manifest_result = {
                         "kind": "text",
                         "label": f"RunningHub 任务 {out['task_id']}",
                         "text": json.dumps(
-                            {
-                                "provider": "runninghub",
-                                "task_id": out["task_id"],
-                                "model": out["model"],
-                                "mode": video_mode,
-                                "resolution": resolution,
-                                "duration": duration,
-                                "aspect": aspect,
-                                "realPersonMode": True,
-                                "remote_url": out["remote_url"],
-                            },
+                            manifest_payload,
                             ensure_ascii=False,
                             indent=2,
                         ),

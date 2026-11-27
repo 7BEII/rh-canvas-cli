@@ -128,6 +128,7 @@ export const NODE_DEFS: Record<NodeType, NodeDefinition> = {
       { id: 'tensor:WAN_2_7_I2V', label: 'Wan 2.7 I2V', provider: 'tensor' },
       { id: 'tensor:WAN_2_7_T2V', label: 'Wan 2.7 T2V', provider: 'tensor' },
       { id: 'tensor:WAN_2_7_R2V', label: 'Wan 2.7 R2V', provider: 'tensor' },
+      { id: 'rh:magi-2', label: 'MAGI-2', provider: 'runninghub' },
       { id: 'rh:seedance-2.5', label: 'Seedance 2.5', provider: 'runninghub' },
       { id: 'rh:seedance-2.5-flash', label: 'Seedance 2.5 Flash', provider: 'runninghub' },
       { id: 'rh:seedance-2.0', label: 'Seedance 2.0', provider: 'runninghub' },

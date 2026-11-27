@@ -106,11 +106,47 @@ const currentModelLabel = computed(() => {
   return anyMatch?.label || filteredModels.value[0]?.label || 'Seedance 2.5 Flash';
 });
 
+const isMagi2 = computed(() => (props.card.model || '').toLowerCase().includes('magi-2'));
+const isLongDurationModel = computed(() => {
+  const id = (props.card.model || '').toLowerCase();
+  return id.includes('magi-2') || id === 'rh:seedance-2.5' || id === 'rh:seedance-2.5-flash';
+});
+
+function inferExplicitProvider(modelId?: string): 'runninghub' | 'ark' | 'tensor' | null {
+  const raw = (modelId || '').trim().toLowerCase();
+  if (!raw) return null;
+  if (raw.startsWith('rh:') || raw === 'wan-3.0' || raw === 'hailuo-h3' || raw === 'seedance-2.0-mini') {
+    return 'runninghub';
+  }
+  if (raw.startsWith('tensor:')) return 'tensor';
+  return null;
+}
+
+function normalizeModelParams(modelId: string) {
+  const low = modelId.toLowerCase();
+  if (low.includes('magi-2')) {
+    props.card.resolution = '1080p';
+    const curDur = Number(props.card.duration || 5);
+    props.card.duration = Math.max(4, Math.min(30, curDur));
+  } else if (low === 'rh:seedance-2.5-flash') {
+    if (props.card.resolution === '1080p') props.card.resolution = '720p';
+    const curDur = Number(props.card.duration || 15);
+    props.card.duration = Math.max(4, Math.min(30, curDur));
+  } else if (low === 'rh:seedance-2.5') {
+    const curDur = Number(props.card.duration || 15);
+    props.card.duration = Math.max(4, Math.min(30, curDur));
+  } else {
+    const curDur = Number(props.card.duration || 15);
+    props.card.duration = Math.max(5, Math.min(15, curDur));
+  }
+}
+
 async function switchChannel(ch: 'tensor' | 'runninghub' | 'ark') {
   activeProvider.value = ch;
   const list = models.value.filter((item) => (item.provider || 'ark') === ch);
   if (list.length && !list.some((m) => m.id === props.card.model)) {
     props.card.model = list[0].id;
+    normalizeModelParams(list[0].id);
     canvas.scheduleSave();
   }
   try {
@@ -122,7 +158,23 @@ async function switchChannel(ch: 'tensor' | 'runninghub' | 'ark') {
 
 const styleOptions = ['无', '古风奇幻', '电影写实', '3D 动画', '国风仙侠', '赛博霓虹', '胶片质感'];
 const aspectOptions = ['自适应', '16:9', '4:3', '1:1', '3:4', '9:16', '21:9'];
-const resolutionOptions = ['480p', '720p', '1080p'];
+const resolutionOptions = computed(() => {
+  if (isMagi2.value) return ['1080p'];
+  if ((props.card.model || '').toLowerCase() === 'rh:seedance-2.5-flash') return ['480p', '720p'];
+  return ['480p', '720p', '1080p'];
+});
+const durationRange = computed(() =>
+  isLongDurationModel.value ? { min: 4, max: 30 } : { min: 5, max: 15 },
+);
+const effectiveResolution = computed(() => {
+  const cur = props.card.resolution || '720p';
+  return resolutionOptions.value.includes(cur) ? cur : resolutionOptions.value[0];
+});
+const effectiveDuration = computed(() => {
+  const { min, max } = durationRange.value;
+  const cur = Number(props.card.duration || (isMagi2.value ? 5 : 15));
+  return Math.max(min, Math.min(max, cur));
+});
 
 const currentMode = computed<VideoGenMode>({
   get: () => props.card.videoMode || 'omni',
@@ -359,12 +411,25 @@ watch(
   },
 );
 
+watch(
+  () => [props.card.id, props.card.model] as const,
+  ([, modelId]) => {
+    const inferred = inferExplicitProvider(modelId);
+    if (inferred) {
+      activeProvider.value = inferred;
+    }
+  },
+  { immediate: true },
+);
+
 onMounted(() => {
   renderEditorFromModel();
   void apiClient
     .getConfig()
     .then((res) => {
-      activeProvider.value = (res.config.video_provider as 'runninghub' | 'ark' | 'tensor') || 'tensor';
+      const inferred = inferExplicitProvider(props.card.model);
+      activeProvider.value =
+        inferred || (res.config.video_provider as 'runninghub' | 'ark' | 'tensor') || 'tensor';
     })
     .catch(() => {});
 });
@@ -549,6 +614,11 @@ function togglePopover(name: 'model' | 'params' | 'style' | 'batch') {
 
 function selectModel(id: string) {
   props.card.model = id;
+  normalizeModelParams(id);
+  const inferred = inferExplicitProvider(id);
+  if (inferred) {
+    activeProvider.value = inferred;
+  }
   activePopover.value = null;
   canvas.scheduleSave();
 }
@@ -560,8 +630,8 @@ function onEditorBlur() {
 }
 
 const estimatedPrice = computed(() => {
-  const res = (props.card.resolution || '720p').toLowerCase();
-  const dur = Math.max(4, Number(props.card.duration || 15));
+  const res = effectiveResolution.value.toLowerCase();
+  const dur = effectiveDuration.value;
   const batch = Math.max(1, Number(props.card.batchCount || 1));
   const modelId = (props.card.model || 'seedance-2.0-mini').replace(/^rh:/, '');
   const hasVideoRef = refItems.value.some((r) => r.kind === 'video');
@@ -583,6 +653,14 @@ const estimatedPrice = computed(() => {
   }
 
   if (activeProvider.value === 'runninghub') {
+    if (modelId === 'magi-2') {
+      const total = 0.66 * dur * batch;
+      const coins = Math.round(total * 100);
+      return {
+        text: `~¥${total.toFixed(2)}`,
+        detail: `RunningHub MAGI-2 参考计费：¥0.66/秒 × ${dur}秒 × ${batch} = ¥${total.toFixed(2)}（约 ${coins} 积分 · 1080p 含音效；最终以 RunningHub 返回实扣为准）`,
+      };
+    }
     // Baseline calibrated against live RunningHub sparkvideo-2.0-mini billing (5s multimodal w/ video = ¥4.00)
     const baseRate = hasVideoRef
       ? res === '1080p'
@@ -805,20 +883,20 @@ function handleSubmit() {
           <!-- Params Pill (720p / 15秒 / 9:16) -->
           <div class="ctrl-anchor">
             <button type="button" class="ctrl-btn" @click.stop="togglePopover('params')">
-              <span>{{ card.resolution || '720p' }} / {{ card.duration || 15 }}秒 / {{ card.aspect || '16:9' }}</span>
+              <span>{{ effectiveResolution }} / {{ effectiveDuration }}秒 / {{ card.aspect || '16:9' }}</span>
               <ChevronDown :size="13" />
             </button>
 
             <div v-if="activePopover === 'params'" class="ctrl-popover params-pop" @click.stop>
               <div class="param-block">
-                <label>分辨率</label>
+                <label>分辨率{{ isMagi2 ? '（MAGI-2 原生 1080p）' : '' }}</label>
                 <div class="seg-row">
                   <button
                     v-for="r in resolutionOptions"
                     :key="r"
                     type="button"
                     class="seg-btn"
-                    :class="{ active: (card.resolution || '720p') === r }"
+                    :class="{ active: effectiveResolution === r }"
                     @click="
                       card.resolution = r;
                       canvas.scheduleSave();
@@ -831,15 +909,15 @@ function handleSubmit() {
 
               <div class="param-block">
                 <div class="param-label-row">
-                  <label>生成时长</label>
-                  <span class="dur-pill">{{ card.duration || 15 }} 秒</span>
+                  <label>生成时长（{{ durationRange.min }}-{{ durationRange.max }}秒）</label>
+                  <span class="dur-pill">{{ effectiveDuration }} 秒</span>
                 </div>
                 <input
                   type="range"
-                  min="5"
-                  max="15"
+                  :min="durationRange.min"
+                  :max="durationRange.max"
                   step="1"
-                  :value="card.duration || 15"
+                  :value="effectiveDuration"
                   class="dur-slider"
                   @input="
                     card.duration = Number(($event.target as HTMLInputElement).value);

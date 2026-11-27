@@ -258,6 +258,7 @@ async function handleSave() {
           <div class="builtin-box">
             <div class="builtin-title">已内置 RunningHub OpenAPI v2 接口</div>
             <div class="model-pills">
+              <span class="model-pill">sand-ai/magi-2/*</span>
               <span class="model-pill">bytedance/seedance-2.5-token/*</span>
               <span class="model-pill">bytedance/seedance-2.5-flash-token/*</span>
               <span class="model-pill">sparkvideo-2.0 / 2.0-fast / 2.0-mini</span>
