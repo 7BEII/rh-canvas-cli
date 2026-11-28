@@ -464,6 +464,23 @@ def create_app() -> Flask:
         except Exception as exc:
             return _json_error(exc, 400)
 
+    @app.post("/api/nodes/run-async")
+    def run_node_async():
+        payload: dict[str, Any] = request.get_json(silent=True) or {}
+        card = payload.get("card")
+        upstream = payload.get("upstream") or []
+        if not isinstance(card, dict):
+            return _json_error("缺少节点数据 card", 400)
+        run_id = runner.start_node_async(card, upstream if isinstance(upstream, list) else [])
+        return jsonify({"success": True, "run_id": run_id, "status": "running"}), 202
+
+    @app.get("/api/nodes/runs/<run_id>")
+    def get_node_run(run_id: str):
+        entry = runner.get_async_run(run_id)
+        if entry is None:
+            return _json_error("运行任务不存在或已重启丢失", 404)
+        return jsonify({"success": True, **entry})
+
     @app.post("/api/nodes/cancel")
     def cancel_node():
         payload: dict[str, Any] = request.get_json(silent=True) or {}

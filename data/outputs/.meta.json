@@ -108,5 +108,21 @@
     "duration_ms": 397315,
     "started_at": "2026-11-27T13:44:29.535133+00:00",
     "created_at": "2026-11-27T13:51:06.856842+00:00"
+  },
+  "videos/rh-1425039362-e8f0d5.mp4": {
+    "node_type": "video",
+    "name": "视频成片",
+    "model": "rh:magi-2",
+    "prompt": "镜头缓慢向前推近，蓝白钙化梯池水面泛起柔和微风波纹，自然环境水声。",
+    "aspect": "自适应",
+    "resolution": "1080p",
+    "duration": 4,
+    "videoMode": "firstFrame",
+    "stylePreset": "古风奇幻",
+    "generateAudio": true,
+    "provider": "runninghub:sand-ai/magi-2 (RunningHub)",
+    "duration_ms": 155506,
+    "started_at": "2026-11-28T14:54:57.134271+00:00",
+    "created_at": "2026-11-28T14:57:32.643387+00:00"
   }
 }

@@ -49,6 +49,7 @@ class WorkflowRunner:
         self._tasks_path = Path(__file__).resolve().parent.parent / "data" / "tasks.json"
         self._tasks: list[dict[str, Any]] = self._load_tasks()
         self._active_runs: dict[str, dict[str, Any]] = {}
+        self._async_runs: dict[str, dict[str, Any]] = {}
 
     def _load_tasks(self) -> list[dict[str, Any]]:
         if self._tasks_path.exists():
@@ -102,6 +103,48 @@ class WorkflowRunner:
     def list_tasks(self, limit: int = 50) -> list[dict[str, Any]]:
         with self._lock:
             return list(reversed(self._tasks[-limit:]))
+
+    def start_node_async(self, card: dict[str, Any], upstream: list[dict[str, Any]]) -> str:
+        """Start run_node in a daemon thread so long cloud video renders never hit browser/proxy HTTP timeouts."""
+        run_id = f"run-{uuid4().hex[:12]}"
+        node_id = str(card.get("id") or "node")
+        entry: dict[str, Any] = {
+            "run_id": run_id,
+            "node_id": node_id,
+            "status": "running",
+            "created_at": _now_iso(),
+            "finished_at": None,
+            "result": None,
+            "error": None,
+        }
+        with self._lock:
+            self._async_runs[run_id] = entry
+            if len(self._async_runs) > 120:
+                oldest = list(self._async_runs.keys())[:-120]
+                for k in oldest:
+                    if self._async_runs[k].get("status") != "running":
+                        self._async_runs.pop(k, None)
+
+        def _worker() -> None:
+            try:
+                res = self.run_node(card, upstream)
+                with self._lock:
+                    entry["status"] = "done"
+                    entry["result"] = res
+                    entry["finished_at"] = _now_iso()
+            except Exception as exc:
+                with self._lock:
+                    entry["status"] = "error"
+                    entry["error"] = str(exc)
+                    entry["finished_at"] = _now_iso()
+
+        threading.Thread(target=_worker, daemon=True).start()
+        return run_id
+
+    def get_async_run(self, run_id: str) -> dict[str, Any] | None:
+        with self._lock:
+            entry = self._async_runs.get(run_id)
+            return dict(entry) if entry is not None else None
 
     def _record_task(self, entry: dict[str, Any]) -> dict[str, Any]:
         with self._lock:

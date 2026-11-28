@@ -265,21 +265,77 @@ export const apiClient = {
     });
   },
 
-  runNode(
+  async runNode(
     payload: { card: CanvasCard; upstream: Array<{ ref: CanvasCard['refs'][number]; card: CanvasCard }> },
     signal?: AbortSignal,
-  ) {
-    return request<{
-      success: boolean;
-      results: CardResult[];
-      provider: string;
-      message: string;
-      task: TaskLogEntry;
-    }>('/nodes/run', {
+  ): Promise<{
+    success: boolean;
+    results: CardResult[];
+    provider: string;
+    message: string;
+    task: TaskLogEntry;
+  }> {
+    const start = await request<{ success: boolean; run_id: string; status: string }>('/nodes/run-async', {
       method: 'POST',
       body: JSON.stringify(payload),
       signal,
     });
+    const runId = start.run_id;
+    let consecutivePollErrors = 0;
+
+    while (true) {
+      if (signal?.aborted) {
+        throw new DOMException('Aborted', 'AbortError');
+      }
+      await new Promise<void>((resolve, reject) => {
+        const timer = window.setTimeout(() => {
+          signal?.removeEventListener('abort', onAbort);
+          resolve();
+        }, 1800);
+        const onAbort = () => {
+          window.clearTimeout(timer);
+          reject(new DOMException('Aborted', 'AbortError'));
+        };
+        if (signal) {
+          if (signal.aborted) {
+            window.clearTimeout(timer);
+            reject(new DOMException('Aborted', 'AbortError'));
+            return;
+          }
+          signal.addEventListener('abort', onAbort, { once: true });
+        }
+      });
+
+      try {
+        const state = await request<{
+          success: boolean;
+          status: 'running' | 'done' | 'error';
+          result?: {
+            success: boolean;
+            results: CardResult[];
+            provider: string;
+            message: string;
+            task: TaskLogEntry;
+          };
+          error?: string;
+        }>(`/nodes/runs/${encodeURIComponent(runId)}`, { signal });
+        consecutivePollErrors = 0;
+        if (state.status === 'done' && state.result) {
+          return state.result;
+        }
+        if (state.status === 'error') {
+          throw new Error(state.error || '节点运行失败');
+        }
+      } catch (err: any) {
+        if (err?.name === 'AbortError') throw err;
+        // Re-throw real backend errors (task failed or missing); tolerate brief transient network blips
+        const msg = String(err?.message || '');
+        const isTransient = msg.includes('无法连接本地后端服务') || msg.includes('Failed to fetch');
+        if (!isTransient || ++consecutivePollErrors >= 5) {
+          throw err;
+        }
+      }
+    }
   },
 
   cancelNode(nodeId: string) {

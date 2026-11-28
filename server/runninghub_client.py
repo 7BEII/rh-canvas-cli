@@ -195,13 +195,29 @@ class RunningHubVideoClient:
 
     def upload_local_file(self, path: Path, kind: str) -> str:
         mime = mime_for_suffix(path.suffix, kind)
-        with path.open("rb") as fh:
-            resp = requests.post(
-                f"{self.base_url}{UPLOAD_PATH}",
-                headers=self._headers(),
-                files={"file": (path.name, fh, mime)},
-                timeout=180,
-            )
+        last_exc: Exception | None = None
+        resp: requests.Response | None = None
+        for attempt in range(3):
+            try:
+                with path.open("rb") as fh:
+                    resp = requests.post(
+                        f"{self.base_url}{UPLOAD_PATH}",
+                        headers=self._headers(),
+                        files={"file": (path.name, fh, mime)},
+                        timeout=180,
+                    )
+                if resp.status_code >= 500 and attempt < 2:
+                    time.sleep(1.5 * (attempt + 1))
+                    continue
+                break
+            except requests.RequestException as exc:
+                last_exc = exc
+                if attempt < 2:
+                    time.sleep(1.5 * (attempt + 1))
+                    continue
+                raise RuntimeError(f"RunningHub 素材上传网络异常：{exc}") from exc
+        if resp is None:
+            raise RuntimeError(f"RunningHub 素材上传失败：{last_exc}")
         try:
             payload = resp.json()
         except Exception as exc:
@@ -246,12 +262,28 @@ class RunningHubVideoClient:
         return None
 
     def _query_task(self, task_id: str) -> dict[str, Any]:
-        resp = requests.post(
-            f"{self.base_url}{QUERY_PATH}",
-            headers=self._headers(json_content=True),
-            json={"taskId": task_id},
-            timeout=(15, 60),
-        )
+        last_exc: Exception | None = None
+        resp: requests.Response | None = None
+        for attempt in range(4):
+            try:
+                resp = requests.post(
+                    f"{self.base_url}{QUERY_PATH}",
+                    headers=self._headers(json_content=True),
+                    json={"taskId": task_id},
+                    timeout=(15, 60),
+                )
+                if resp.status_code >= 500 and attempt < 3:
+                    time.sleep(1.5 * (attempt + 1))
+                    continue
+                break
+            except requests.RequestException as exc:
+                last_exc = exc
+                if attempt < 3:
+                    time.sleep(1.5 * (attempt + 1))
+                    continue
+                raise RuntimeError(f"RunningHub 查询任务网络异常 (taskId: {task_id})：{exc}") from exc
+        if resp is None:
+            raise RuntimeError(f"RunningHub 查询任务失败 (taskId: {task_id})：{last_exc}")
         try:
             payload = resp.json()
         except Exception as exc:
@@ -314,7 +346,7 @@ class RunningHubVideoClient:
         output_dir: Path,
         seed: int | None = None,
         poll_interval: float = 3.0,
-        timeout_seconds: float = 900.0,
+        timeout_seconds: float = 1200.0,
         cancel_event: threading.Event | None = None,
         on_task_created: Callable[[str], None] | None = None,
     ) -> dict[str, Any]:
@@ -544,7 +576,20 @@ class RunningHubVideoClient:
             if cancel_event is not None and cancel_event.is_set():
                 raise InterruptedError("已中止 RunningHub 视频生成")
 
-            resp = requests.post(api_url, headers=self._headers(json_content=True), json=body, timeout=180)
+            resp: requests.Response | None = None
+            for sub_try in range(3):
+                try:
+                    resp = requests.post(api_url, headers=self._headers(json_content=True), json=body, timeout=180)
+                    if resp.status_code >= 500 and sub_try < 2:
+                        time.sleep(1.5 * (sub_try + 1))
+                        continue
+                    break
+                except requests.RequestException as exc:
+                    if sub_try < 2:
+                        time.sleep(1.5 * (sub_try + 1))
+                        continue
+                    raise RuntimeError(f"RunningHub 提交任务网络异常：{exc}") from exc
+            assert resp is not None
             try:
                 payload = resp.json()
             except Exception as exc:
